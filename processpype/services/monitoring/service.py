@@ -1,55 +1,36 @@
 """System monitoring service."""
 
-import asyncio
-
-import psutil
+from typing import cast
 
 from ...core.models import ServiceState
-from ...core.service import Service
+from ...core.service.router import ServiceRouter
+from ...core.service.service import Service
+from .manager import MonitoringManager
+from .router import MonitoringServiceRouter
 
 
 class MonitoringService(Service):
     """Service for monitoring system resources."""
 
-    def __init__(self, name: str | None = None):
-        super().__init__(name)
-        self._monitor_task: asyncio.Task | None = None
-        self._interval = 5.0  # seconds
+    def create_manager(self) -> MonitoringManager:
+        """Create the monitoring manager.
 
-    def setup_routes(self) -> None:
-        super().setup_routes()
+        Returns:
+            A monitoring manager instance.
+        """
+        return MonitoringManager(self.logger)
 
-        @self._router.get("/metrics")
-        async def get_metrics() -> dict[str, float]:
-            """Get current system metrics."""
-            return self.status.metadata
+    def create_router(self) -> ServiceRouter:
+        """Create the monitoring service router.
 
-    async def _collect_metrics(self) -> dict[str, float]:
-        """Collect system metrics."""
-        return {
-            "cpu_percent": psutil.cpu_percent(interval=1),
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage("/").percent,
-        }
-
-    async def _monitor_loop(self) -> None:
-        """Monitor loop for collecting metrics."""
-        while True:
-            try:
-                metrics = await self._collect_metrics()
-                self.status.metadata.update(metrics)
-                self.logger.debug(
-                    "Updated metrics",
-                    extra={"metrics": metrics, "service_state": self.status.state},
-                )
-                await asyncio.sleep(self._interval)
-            except Exception as e:
-                self.logger.error(
-                    "Error collecting metrics",
-                    extra={"error": str(e), "service_state": self.status.state},
-                )
-                self.set_error(str(e))
-                await asyncio.sleep(self._interval)
+        Returns:
+            A monitoring service router instance.
+        """
+        return MonitoringServiceRouter(
+            name=self.name,
+            get_status=lambda: self.status,
+            get_metrics=lambda: cast(MonitoringManager, self.manager).metrics,
+        )
 
     async def start(self) -> None:
         """Start the monitoring service."""
@@ -59,7 +40,7 @@ class MonitoringService(Service):
         )
 
         try:
-            self._monitor_task = asyncio.create_task(self._monitor_loop())
+            await cast(MonitoringManager, self.manager).start_monitoring()
             self.status.state = ServiceState.RUNNING
         except Exception as e:
             error_msg = f"Failed to start monitoring: {e}"
@@ -76,12 +57,5 @@ class MonitoringService(Service):
             "Stopping monitoring service", extra={"service_state": self.status.state}
         )
 
-        if self._monitor_task:
-            self._monitor_task.cancel()
-            try:
-                await self._monitor_task
-            except asyncio.CancelledError:
-                pass
-            self._monitor_task = None
-
+        await cast(MonitoringManager, self.manager).stop_monitoring()
         self.status.state = ServiceState.STOPPED
