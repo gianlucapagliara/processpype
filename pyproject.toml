@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "processpype"
 version = "0.1.0"
-description = "A modular application framework with built-in FastAPI integration and pluggable services" 
+description = "A modular application framework with built-in FastAPI integration and pluggable services"
 authors = ["Gianluca Pagliara <pagliara.gianluca@gmail.com>"]
 readme = "README.md"
 
@@ -74,4 +74,3 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Ignore unused imports in __init__ files
-
