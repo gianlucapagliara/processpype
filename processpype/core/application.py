@@ -3,14 +3,17 @@
 import asyncio
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
-from .config import ConfigurationManager
-from .config.models import ApplicationConfiguration, ServiceConfiguration
+from processpype.core.manager import ApplicationManager
+from processpype.core.system import setup_timezone
+
+from .configuration import ConfigurationManager
+from .configuration.models import ApplicationConfiguration
 from .logfire import get_service_logger, setup_logfire
-from .models import ApplicationStatus, ServiceState
+from .models import ServiceState
+from .router import ApplicationRouter
 from .service import Service
-from .system import setup_timezone
 
 
 class Application:
@@ -23,16 +26,9 @@ class Application:
             config: Application configuration
         """
         self._config = config
-        self._services: dict[str, Service] = {}
-        self._state = ServiceState.STOPPED
         self._initialized = False
-        self._setup_complete = False
         self._lock = asyncio.Lock()
-
-    @property
-    def config(self) -> ApplicationConfiguration:
-        """Get application configuration."""
-        return self._config
+        self._manager: ApplicationManager | None = None
 
     @classmethod
     async def create(cls, config_file: str | None = None, **kwargs) -> "Application":
@@ -50,15 +46,86 @@ class Application:
         )
         return cls(config)
 
+    # === Properties ===
+
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the application is initialized."""
+        return self._initialized
+
+    @property
+    def config(self) -> ApplicationConfiguration:
+        """Get application configuration."""
+        return self._config
+
+    # === Lifecycle ===
+
+    async def start(self) -> None:
+        """Start the application and API server."""
+        if not self.is_initialized:
+            await self.initialize()
+
+        if not self._manager:
+            raise RuntimeError("Application manager not initialized")
+
+        self._manager.set_state(ServiceState.STARTING)
+        self.logger.info(
+            f"Starting application on {self._config.host}:{self._config.port}"
+        )
+
+        # Start enabled services
+        await self._manager.start_enabled_services()
+
+        # Start uvicorn server
+        config = uvicorn.Config(
+            self.api,
+            host=self._config.host,
+            port=self._config.port,
+            log_level="debug" if self._config.debug else "info",
+        )
+        server = uvicorn.Server(config)
+
+        try:
+            self._manager.set_state(ServiceState.RUNNING)
+            await server.serve()
+        except Exception as e:
+            self._manager.set_state(ServiceState.ERROR)
+            self.logger.error(f"Failed to start application: {e}")
+            raise
+
+    async def stop(self) -> None:
+        """Stop the application and all services."""
+        if not self.is_initialized or not self._manager:
+            return
+
+        self._manager.set_state(ServiceState.STOPPING)
+        self.logger.info("Stopping application")
+
+        # Stop all services
+        await self._manager.stop_all_services()
+        self._manager.set_state(ServiceState.STOPPED)
+
+    async def __aenter__(self) -> "Application":
+        """Async context manager entry."""
+        await self.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit."""
+        await self.stop()
+
+    # === Initialization ===
+
     async def initialize(self) -> None:
         """Initialize the application asynchronously."""
         async with self._lock:
-            if self._setup_complete:
+            if self.is_initialized:
                 return
+
+            setup_timezone()
 
             # Initialize FastAPI
             self.api = FastAPI(title=self._config.title, version=self._config.version)
-            self.setup_core_routes()
 
             # Setup logging
             setup_logfire(
@@ -68,6 +135,11 @@ class Application:
             )
             self.logger = get_service_logger("application")
 
+            # Initialize manager
+            self.initialize_manager()
+
+            # Setup core routes
+            self.initialize_router()
             self.logger.info(
                 "Application initialized",
                 extra={
@@ -78,60 +150,29 @@ class Application:
                 },
             )
 
-            setup_timezone()
-            self._setup_complete = True
             self._initialized = True
 
-    def setup_core_routes(self) -> None:
-        """Setup core application routes."""
+    def initialize_manager(self) -> None:
+        """Initialize the application manager."""
+        self._manager = ApplicationManager(self.logger, self._config)
+        self._manager.set_state(ServiceState.INITIALIZED)
 
-        @self.api.get("/")
-        async def get_status() -> ApplicationStatus:
-            """Get application status."""
-            return ApplicationStatus(
-                version=self._config.version,
-                state=self._state,
-                services={name: svc.status for name, svc in self._services.items()},
-            )
+    def initialize_router(self) -> None:
+        if self._manager is None:
+            raise RuntimeError("Application manager not initialized")
 
-        @self.api.get("/services")
-        async def list_services() -> dict[str, str]:
-            """List all registered services."""
-            return {
-                name: svc.__class__.__name__ for name, svc in self._services.items()
-            }
+        router = ApplicationRouter(
+            get_version=lambda: self._config.version,
+            get_state=lambda: self._manager.state
+            if self._manager
+            else ServiceState.STOPPED,
+            get_services=lambda: self._manager.services if self._manager else {},
+            start_service=self._manager.start_service,
+            stop_service=self._manager.stop_service,
+        )
+        self.api.include_router(router)
 
-        @self.api.post("/services/{service_name}/start")
-        async def start_service(service_name: str) -> dict[str, str]:
-            """Start a service."""
-            service = self._services.get(service_name)
-            if not service:
-                raise HTTPException(
-                    status_code=404, detail=f"Service {service_name} not found"
-                )
-
-            try:
-                await service.start()
-                return {"status": "started", "service": service_name}
-            except Exception as e:
-                service.set_error(str(e))
-                raise HTTPException(status_code=500, detail=str(e)) from e
-
-        @self.api.post("/services/{service_name}/stop")
-        async def stop_service(service_name: str) -> dict[str, str]:
-            """Stop a service."""
-            service = self._services.get(service_name)
-            if not service:
-                raise HTTPException(
-                    status_code=404, detail=f"Service {service_name} not found"
-                )
-
-            try:
-                await service.stop()
-                return {"status": "stopped", "service": service_name}
-            except Exception as e:
-                service.set_error(str(e))
-                raise HTTPException(status_code=500, detail=str(e)) from e
+    # === Service Management ===
 
     def register_service(
         self, service_class: type[Service], name: str | None = None
@@ -149,102 +190,33 @@ class Application:
             RuntimeError: If application is not initialized
             ValueError: If service name is already registered
         """
-        if not self._setup_complete:
+        if not self.is_initialized or not self._manager:
             raise RuntimeError(
                 "Application must be initialized before registering services"
             )
 
-        service = service_class(name)
+        service = self._manager.register_service(service_class, name)
+        if service.router:
+            self.api.include_router(service.router)
 
-        if service.name in self._services:
-            raise ValueError(f"Service {service.name} already registered")
-
-        # Apply service configuration if available
-        if service.name in self._config.services:
-            service_config = self._config.services[service.name]
-            if hasattr(service, "configure"):
-                if not isinstance(service_config, ServiceConfiguration):
-                    service_config = ServiceConfiguration(**service_config)
-                service.configure(service_config)
-
-        self._services[service.name] = service
-        self.api.include_router(service.router)
-        self.logger.info(f"Registered service: {service.name}")
         return service
 
     def get_service(self, name: str) -> Service | None:
         """Get a service by name."""
-        return self._services.get(name)
+        if not self._manager:
+            return None
+        return self._manager.get_service(name)
 
     async def start_service(self, service_name: str) -> None:
         """Start a service by name."""
-        if not self._setup_complete:
+        if not self.is_initialized or not self._manager:
             raise RuntimeError(
                 "Application must be initialized before starting services"
             )
+        await self._manager.start_service(service_name)
 
-        service = self._services.get(service_name)
-        if not service:
-            raise ValueError(f"Service {service_name} not found")
-        await service.start()
-
-    async def start(self) -> None:
-        """Start the application and API server."""
-        if not self._setup_complete:
-            await self.initialize()
-
-        self._state = ServiceState.STARTING
-        self.logger.info(
-            f"Starting application on {self._config.host}:{self._config.port}"
-        )
-
-        # Start enabled services
-        for name, service in self._services.items():
-            if name in self._config.services and self._config.services[name].enabled:
-                try:
-                    await service.start()
-                except Exception as e:
-                    self.logger.error(f"Failed to start service {name}: {e}")
-
-        # Start uvicorn server
-        config = uvicorn.Config(
-            self.api,
-            host=self._config.host,
-            port=self._config.port,
-            log_level="debug" if self._config.debug else "info",
-        )
-        server = uvicorn.Server(config)
-
-        try:
-            self._state = ServiceState.RUNNING
-            await server.serve()
-        except Exception as e:
-            self._state = ServiceState.ERROR
-            self.logger.error(f"Failed to start application: {e}")
-            raise
-
-    async def stop(self) -> None:
-        """Stop the application and all services."""
-        if not self._setup_complete:
+    async def stop_service(self, service_name: str) -> None:
+        """Stop a service by name."""
+        if not self._manager:
             return
-
-        self._state = ServiceState.STOPPING
-        self.logger.info("Stopping application")
-
-        # Stop all services
-        for service in self._services.values():
-            try:
-                await service.stop()
-            except Exception as e:
-                self.logger.error(f"Failed to stop service {service.name}: {e}")
-
-        self._state = ServiceState.STOPPED
-
-    async def __aenter__(self) -> "Application":
-        """Async context manager entry."""
-        await self.initialize()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Async context manager exit."""
-        await self.stop()
+        await self._manager.stop_service(service_name)

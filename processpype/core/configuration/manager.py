@@ -1,12 +1,13 @@
 """Configuration manager for ProcessPype."""
 
 import asyncio
-from typing import Any, TypeVar
+from typing import Any
 
-from .models import ApplicationConfiguration, ConfigurationModel
+from pydantic import BaseModel
+
+from processpype.core.configuration.models import ApplicationConfiguration
+
 from .providers import ConfigurationProvider, EnvProvider, FileProvider
-
-T = TypeVar("T", bound=ConfigurationModel)
 
 
 class ConfigurationManager:
@@ -99,7 +100,7 @@ class ConfigurationManager:
         """
         return self._config.get(key, default)
 
-    def get_model(self, model: type[T]) -> T:
+    def get_model(self, model: type[BaseModel]) -> BaseModel:
         """Get configuration as model.
 
         Args:
