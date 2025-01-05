@@ -19,12 +19,16 @@ def manager(logger: logging.Logger) -> ServiceManager:
     return ServiceManager(logger)
 
 
-def test_manager_initialization(manager: ServiceManager, logger: logging.Logger):
+def test_manager_initialization(
+    manager: ServiceManager, logger: logging.Logger
+) -> None:
     """Test manager initialization."""
     assert manager.logger == logger
 
 
-def test_manager_logging(manager: ServiceManager, caplog: pytest.LogCaptureFixture):
+def test_manager_logging(
+    manager: ServiceManager, caplog: pytest.LogCaptureFixture
+) -> None:
     """Test manager logging functionality."""
     test_message = "Test log message"
 

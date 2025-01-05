@@ -36,11 +36,14 @@ def test_service_status_validation() -> None:
     """Test ServiceStatus model validation."""
     # Test invalid state
     with pytest.raises(ValueError):
-        ServiceStatus(state="invalid")
+        ServiceStatus(state="invalid", metadata={})  # type: ignore[arg-type]
 
     # Test invalid metadata type
     with pytest.raises(ValueError):
-        ServiceStatus(state=ServiceState.RUNNING, metadata="invalid")
+        ServiceStatus(
+            state=ServiceState.RUNNING,
+            metadata=123,  # type: ignore[arg-type]
+        )
 
 
 def test_application_status_creation() -> None:
@@ -65,12 +68,20 @@ def test_application_status_validation() -> None:
     """Test ApplicationStatus model validation."""
     # Test missing required fields
     with pytest.raises(ValueError):
-        ApplicationStatus()
+        ApplicationStatus(version="1.0.0", state=ServiceState.RUNNING)  # type: ignore
 
     # Test invalid version type
     with pytest.raises(ValueError):
-        ApplicationStatus(version=1.0, state=ServiceState.RUNNING, services={})
+        ApplicationStatus(
+            version=1.0,  # type: ignore
+            state=ServiceState.RUNNING,
+            services={},
+        )
 
     # Test invalid services type
     with pytest.raises(ValueError):
-        ApplicationStatus(version="1.0.0", state=ServiceState.RUNNING, services=[])
+        ApplicationStatus(
+            version="1.0.0",
+            state=ServiceState.RUNNING,
+            services=[],  # type: ignore
+        )

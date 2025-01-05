@@ -3,8 +3,6 @@
 import asyncio
 from typing import Any
 
-from pydantic import BaseModel
-
 from processpype.core.configuration.models import ApplicationConfiguration
 
 from .providers import ConfigurationProvider, EnvProvider, FileProvider
@@ -13,7 +11,7 @@ from .providers import ConfigurationProvider, EnvProvider, FileProvider
 class ConfigurationManager:
     """Configuration manager for ProcessPype."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize manager."""
         self._providers: list[ConfigurationProvider] = []
         self._config: dict[str, Any] = {}
@@ -22,7 +20,7 @@ class ConfigurationManager:
 
     @classmethod
     async def load_application_config(
-        cls, config_file: str | None = None, **kwargs
+        cls, config_file: str | None = None, **kwargs: Any
     ) -> ApplicationConfiguration:
         """Load application configuration from file and/or kwargs.
 
@@ -100,7 +98,9 @@ class ConfigurationManager:
         """
         return self._config.get(key, default)
 
-    def get_model(self, model: type[BaseModel]) -> BaseModel:
+    def get_model(
+        self, model: type[ApplicationConfiguration]
+    ) -> ApplicationConfiguration:
         """Get configuration as model.
 
         Args:

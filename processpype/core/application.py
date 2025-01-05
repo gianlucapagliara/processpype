@@ -1,6 +1,8 @@
 """Core application class for ProcessPype."""
 
 import asyncio
+from types import TracebackType
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI
@@ -31,7 +33,9 @@ class Application:
         self._manager: ApplicationManager | None = None
 
     @classmethod
-    async def create(cls, config_file: str | None = None, **kwargs) -> "Application":
+    async def create(
+        cls, config_file: str | None = None, **kwargs: Any
+    ) -> "Application":
         """Create application instance with configuration from file and/or kwargs.
 
         Args:
@@ -110,7 +114,12 @@ class Application:
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Async context manager exit."""
         await self.stop()
 

@@ -60,7 +60,7 @@ class MockService(Service):
         """Create a mock service manager."""
         return ServiceManager(logging.getLogger(f"test.service.{self.name}"))
 
-    def create_router(self) -> ServiceRouter | None:
+    def create_router(self) -> ServiceRouter:
         """Create a mock service router."""
         return ServiceRouter(
             name=self.name,
@@ -130,13 +130,15 @@ async def test_application_start_stop(app: AsyncGenerator[Application, None]) ->
         with patch("uvicorn.Server.serve") as mock_serve:
             mock_serve.return_value = None
 
+            # Test start
             await application.start()
             assert application._manager is not None
-            assert application._manager.state == ServiceState.RUNNING
+            assert application._manager.state.value == ServiceState.RUNNING.value
             mock_serve.assert_called_once()
 
+            # Test stop
             await application.stop()
-            assert application._manager.state == ServiceState.STOPPED
+            assert application._manager.state.value == ServiceState.STOPPED.value
 
 
 @pytest.mark.asyncio
@@ -148,6 +150,7 @@ async def test_service_registration(app: AsyncGenerator[Application, None]) -> N
         service = application.register_service(MockService)
         assert service is not None
         assert isinstance(service, MockService)
+        assert application._manager is not None
         assert service.name in application._manager.services
 
 
@@ -171,12 +174,13 @@ async def test_service_lifecycle(app: AsyncGenerator[Application, None]) -> None
         # Register and start service
         service = application.register_service(MockService)
         await application.start_service(service.name)
-        assert service.status.state == ServiceState.RUNNING
+        assert isinstance(service, MockService)
+        assert service.status.state.value == ServiceState.RUNNING.value
         assert service.start_called
 
         # Stop service
         await application.stop_service(service.name)
-        assert service.status.state == ServiceState.STOPPED
+        assert service.status.state.value == ServiceState.STOPPED.value
         assert service.stop_called
 
 
@@ -204,7 +208,7 @@ async def test_application_context_manager(
         assert context.is_initialized
         assert isinstance(context.api, FastAPI)
         assert context._manager is not None
-        assert context._manager.state == ServiceState.INITIALIZED
+        assert context._manager.state.value == ServiceState.INITIALIZED.value
 
     assert context._manager.state == ServiceState.STOPPED
 
@@ -217,10 +221,10 @@ async def test_application_error_handling(
     async for application in app:
         await application.initialize()  # Ensure manager is initialized
         with patch("uvicorn.Server.serve") as mock_serve:
-            mock_serve.side_effect = Exception("Server error")
+            mock_serve.side_effect = RuntimeError("Server error")
 
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError):
                 await application.start()
 
             assert application._manager is not None
-            assert application._manager.state == ServiceState.ERROR
+            assert application._manager.state.value == ServiceState.ERROR.value

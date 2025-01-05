@@ -61,7 +61,7 @@ def test_setup_timezone_none() -> None:
             del os.environ["TZ"]
 
 
-def test_setup_timezone_invalid() -> None:
-    """Test setup with invalid timezone."""
-    with pytest.raises(Exception):
+def test_setup_timezone_error() -> None:
+    """Test setup timezone error."""
+    with pytest.raises(ValueError):
         setup_timezone("Invalid/Timezone")

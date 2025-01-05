@@ -19,7 +19,7 @@ class MonitoringManager(ServiceManager):
         """
         super().__init__(logger)
         self._metrics: dict[str, float] = {}
-        self._monitor_task: asyncio.Task | None = None
+        self._monitor_task: asyncio.Task[None] | None = None
         self._interval = 5.0  # seconds
 
     @property

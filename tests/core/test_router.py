@@ -17,9 +17,14 @@ class MockService(Service):
     """Mock service for testing."""
 
     def __init__(self, state: ServiceState = ServiceState.INITIALIZED):
-        super().__init__()
+        """Initialize mock service.
+
+        Args:
+            state: Initial service state
+        """
+        super().__init__()  # Let parent class handle name generation
         self.status.state = state
-        self._error = None
+        self._error: str | None = None
 
     def set_error(self, error: str) -> None:
         """Set service error."""
@@ -29,9 +34,10 @@ class MockService(Service):
 
     def create_manager(self) -> ServiceManager:
         """Create a mock service manager."""
-        return ServiceManager(logging.getLogger(f"test.service.{self.name}"))
+        logger_name = "test.service." + self.name
+        return ServiceManager(logging.getLogger(logger_name))
 
-    def create_router(self) -> ServiceRouter | None:
+    def create_router(self) -> ServiceRouter:
         """Create a mock service router."""
         return ServiceRouter(
             name=self.name,
@@ -50,7 +56,7 @@ class MockService(Service):
 
 
 @pytest.fixture
-def mock_services() -> dict[str, MockService]:
+def mock_services() -> dict[str, Service]:
     """Create mock services dictionary."""
     return {
         "service1": MockService(ServiceState.RUNNING),
@@ -59,7 +65,7 @@ def mock_services() -> dict[str, MockService]:
 
 
 @pytest.fixture
-def router(mock_services: dict[str, MockService]) -> ApplicationRouter:
+def router(mock_services: dict[str, Service]) -> ApplicationRouter:
     """Create test router instance."""
 
     async def start_service(name: str) -> None:
@@ -158,12 +164,12 @@ async def test_stop_service_not_found(client: TestClient) -> None:
 @pytest.mark.asyncio
 async def test_service_operation_error(
     client: TestClient,
-    mock_services: dict[str, MockService],
+    mock_services: dict[str, Service],
 ) -> None:
     """Test error handling during service operations."""
 
     # Mock service that raises an exception
-    async def failing_start(name: str):
+    async def failing_start(name: str) -> None:
         raise Exception("Start failed")
 
     router = ApplicationRouter(

@@ -2,6 +2,7 @@
 
 import asyncio
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ from processpype.core.configuration.models import (
 
 
 @pytest.fixture
-def event_loop():
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create event loop for each test."""
     loop = asyncio.new_event_loop()
     yield loop
@@ -21,7 +22,7 @@ def event_loop():
 
 
 @pytest.fixture
-def temp_config_file():
+def temp_config_file() -> Generator[Path, None, None]:
     """Create a temporary configuration file."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as f:
         f.write("""
@@ -43,7 +44,7 @@ services:
 
 
 @pytest.fixture
-def default_config():
+def default_config() -> ApplicationConfiguration:
     """Create a default application configuration."""
     return ApplicationConfiguration(
         title="Test App",
@@ -56,6 +57,6 @@ def default_config():
 
 
 @pytest.fixture
-def service_config():
+def service_config() -> ServiceConfiguration:
     """Create a test service configuration."""
     return ServiceConfiguration(enabled=True, autostart=True, metadata={"key": "value"})

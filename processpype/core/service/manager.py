@@ -1,10 +1,9 @@
 """Base manager classes for ProcessPype."""
 
 import logging
-from abc import ABC
 
 
-class ServiceManager(ABC):
+class ServiceManager:
     """Base class for all service managers.
 
     A service manager handles the business logic and state management for a service.

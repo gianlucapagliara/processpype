@@ -34,8 +34,8 @@ class MockService(Service):
         self.manager_created = True
         return ServiceManager(logging.getLogger("test.manager"))
 
-    def create_router(self) -> ServiceRouter | None:
-        """Create test service router."""
+    def create_router(self) -> ServiceRouter:
+        """Create a mock service router."""
         self.router_created = True
         return ServiceRouter(
             name=self.name,
@@ -102,12 +102,12 @@ async def test_service_lifecycle() -> None:
 
     # Test start
     await service.start()
-    assert service.status.state == ServiceState.RUNNING
+    assert service.status.state.value == "running"
     assert service.status.error is None
 
     # Test stop
     await service.stop()
-    assert service.status.state == ServiceState.STOPPED
+    assert service.status.state.value == "stopped"
 
 
 def test_service_manager() -> None:

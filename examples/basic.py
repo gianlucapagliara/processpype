@@ -7,7 +7,7 @@ from processpype.core.configuration.models import ApplicationConfiguration
 from processpype.services.monitoring import MonitoringService
 
 
-async def main():
+async def main() -> None:
     # Create application with Logfire integration
     app = Application(
         ApplicationConfiguration(

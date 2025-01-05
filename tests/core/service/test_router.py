@@ -37,12 +37,12 @@ def client(router: ServiceRouter) -> TestClient:
     return TestClient(app)
 
 
-def test_router_initialization(router: ServiceRouter):
+def test_router_initialization(router: ServiceRouter) -> None:
     """Test router initialization."""
     assert router.prefix == "/services/test_service"
 
 
-def test_get_status_endpoint(client: TestClient, status: ServiceStatus):
+def test_get_status_endpoint(client: TestClient, status: ServiceStatus) -> None:
     """Test status endpoint."""
     response = client.get("/services/test_service")
     assert response.status_code == 200
@@ -53,7 +53,7 @@ def test_get_status_endpoint(client: TestClient, status: ServiceStatus):
     assert data["metadata"] == {"key": "value"}
 
 
-def test_get_status_callback(status: ServiceStatus):
+def test_get_status_callback(status: ServiceStatus) -> None:
     """Test status callback functionality."""
     mock_get_status = Mock(return_value=status)
     router = ServiceRouter(

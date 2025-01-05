@@ -25,7 +25,7 @@ def setup_timezone(tz: str | None = default_timezone) -> None:
             If None, timezone setup is skipped.
 
     Raises:
-        Exception: If the timezone is invalid
+        ValueError: If the timezone is invalid
     """
     if tz is None:
         return
@@ -34,7 +34,7 @@ def setup_timezone(tz: str | None = default_timezone) -> None:
         # Validate timezone
         timezone(tz)
     except Exception as e:
-        raise Exception(f"Invalid timezone: {tz}") from e
+        raise ValueError(f"Invalid timezone: {tz}") from e
 
     # Set timezone environment variable
     os.environ["TZ"] = tz

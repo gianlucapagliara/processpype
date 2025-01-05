@@ -67,12 +67,12 @@ from processpype.core.models import ServiceState
 class MyService(Service):
     def __init__(self, name: str | None = None):
         super().__init__(name or "my_service")
-        
+
     async def start(self) -> None:
         self.set_state(ServiceState.STARTING)
         # Initialize your service
         self.set_state(ServiceState.RUNNING)
-        
+
     async def stop(self) -> None:
         self.set_state(ServiceState.STOPPING)
         # Cleanup resources
@@ -105,7 +105,7 @@ class MyService(Service):
         super().__init__(name or "my_service")
         self._router = APIRouter(prefix=f"/services/{self.name}")
         self._setup_routes()
-    
+
     def _setup_routes(self) -> None:
         @self._router.get("/status")
         async def get_status():
@@ -201,7 +201,7 @@ class MyService(Service):
     def __init__(self, name: str | None = None):
         super().__init__(name or "my_service")
         self.logger = get_service_logger(self.name)
-        
+
     async def start(self) -> None:
         self.logger.info("Starting service", extra={"config": self._config.dict()})
 ```
@@ -226,8 +226,7 @@ async def test_my_service_api():
     app = await Application.create()
     service = app.register_service(MyService)
     client = TestClient(app.api)
-    
+
     response = client.get("/services/my_service/status")
     assert response.status_code == 200
 ```
-
