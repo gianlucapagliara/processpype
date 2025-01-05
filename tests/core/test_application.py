@@ -1,208 +1,226 @@
-"""Tests for Application class."""
+"""Unit tests for core application."""
+
+import logging
+from collections.abc import AsyncGenerator
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from processpype.core.application import Application
+from processpype.core.configuration.models import ApplicationConfiguration
 from processpype.core.models import ServiceState
 from processpype.core.service import Service
+from processpype.core.service.manager import ServiceManager
+from processpype.core.service.router import ServiceRouter
+
+
+@pytest.fixture
+def app_config() -> ApplicationConfiguration:
+    """Create test application configuration."""
+    return ApplicationConfiguration(
+        title="Test App",
+        version="1.0.0",
+        host="localhost",
+        port=8080,
+        debug=True,
+        environment="testing",
+    )
+
+
+@pytest.fixture
+async def app(
+    app_config: ApplicationConfiguration,
+) -> AsyncGenerator[Application, None]:
+    """Create test application instance."""
+    app = Application(app_config)
+    async with app as application:
+        yield application
 
 
 class MockService(Service):
-    """Test service implementation."""
+    """Mock service for testing."""
+
+    def __init__(self, name: str | None = None):
+        super().__init__(name)
+        self.start_called = False
+        self.stop_called = False
 
     async def start(self) -> None:
-        """Start the service."""
-        await super().start()
+        """Start the mock service."""
+        self.start_called = True
         self.status.state = ServiceState.RUNNING
 
     async def stop(self) -> None:
-        """Stop the service."""
-        await super().stop()
+        """Stop the mock service."""
+        self.stop_called = True
         self.status.state = ServiceState.STOPPED
 
+    def create_manager(self) -> ServiceManager:
+        """Create a mock service manager."""
+        return ServiceManager(logging.getLogger(f"test.service.{self.name}"))
+
+    def create_router(self) -> ServiceRouter | None:
+        """Create a mock service router."""
+        return ServiceRouter(
+            name=self.name,
+            get_status=lambda: self.status,
+        )
+
 
 @pytest.mark.asyncio
-async def test_application_creation():
-    """Test application creation with factory method."""
-    app = await Application.create(title="Test App", port=9000, environment="testing")
-    assert app._config.title == "Test App"
-    assert app._config.port == 9000
-    assert app._config.environment == "testing"
+async def test_application_creation(app_config: ApplicationConfiguration) -> None:
+    """Test application creation."""
+    app = Application(app_config)
+    assert app.config == app_config
+    assert not app.is_initialized
 
 
 @pytest.mark.asyncio
-async def test_application_initialization(default_config):
+async def test_application_create_from_config() -> None:
+    """Test application creation from config file."""
+    with patch(
+        "processpype.core.configuration.ConfigurationManager.load_application_config"
+    ) as mock_load:
+        mock_load.return_value = ApplicationConfiguration(
+            title="Test App",
+            version="1.0.0",
+            host="localhost",
+            port=8080,
+            debug=True,
+            environment="testing",
+        )
+
+        app = await Application.create(config_file="test.yaml")
+        assert app.config.title == "Test App"
+        assert app.config.version == "1.0.0"
+        mock_load.assert_called_once_with(config_file="test.yaml")
+
+
+@pytest.mark.asyncio
+async def test_application_initialization(
+    app: AsyncGenerator[Application, None],
+) -> None:
     """Test application initialization."""
-    app = Application(default_config)
-    await app.initialize()
-
-    assert isinstance(app.api, FastAPI)
-    assert app.api.title == default_config.title
-    assert app._setup_complete is True
-
-
-@pytest.mark.asyncio
-async def test_multiple_applications(default_config):
-    """Test creating multiple application instances."""
-    app1 = Application(default_config)
-    app2 = Application(default_config)
-
-    await app1.initialize()
-    await app2.initialize()
-
-    # Each app should have its own state
-    assert app1 is not app2
-    assert id(app1._services) != id(
-        app2._services
-    )  # Check for different dictionary instances
-
-    # Register services in each app
-    service1 = app1.register_service(MockService, name="test")
-    service2 = app2.register_service(MockService, name="test")
-
-    # Services should be independent
-    assert service1 is not service2
-    assert app1._services["test"] is not app2._services["test"]
-
-    # Start service in app1 only
-    await app1.start_service("test")
-    assert service1.status.state == ServiceState.RUNNING
-    assert service2.status.state == ServiceState.INITIALIZED
-
-    # Each app should have its own FastAPI instance
-    assert app1.api is not app2.api
+    async for application in app:
+        await application.initialize()
+        assert application.is_initialized
+        assert isinstance(application.api, FastAPI)
+        assert application._manager is not None
 
 
 @pytest.mark.asyncio
-async def test_service_registration(default_config):
+async def test_application_double_initialization(
+    app: AsyncGenerator[Application, None],
+) -> None:
+    """Test that double initialization is safe."""
+    async for application in app:
+        await application.initialize()
+        initial_manager = application._manager
+
+        await application.initialize()
+        assert application._manager == initial_manager
+
+
+@pytest.mark.asyncio
+async def test_application_start_stop(app: AsyncGenerator[Application, None]) -> None:
+    """Test application start and stop."""
+    async for application in app:
+        await application.initialize()  # Ensure manager is initialized
+        with patch("uvicorn.Server.serve") as mock_serve:
+            mock_serve.return_value = None
+
+            await application.start()
+            assert application._manager is not None
+            assert application._manager.state == ServiceState.RUNNING
+            mock_serve.assert_called_once()
+
+            await application.stop()
+            assert application._manager.state == ServiceState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_service_registration(app: AsyncGenerator[Application, None]) -> None:
     """Test service registration."""
-    app = Application(default_config)
-    await app.initialize()
+    async for application in app:
+        await application.initialize()
 
-    service = app.register_service(MockService)
-    assert service.name in app._services
-    assert app._services[service.name] is service
-
-
-@pytest.mark.asyncio
-async def test_service_configuration(default_config):
-    """Test service configuration during registration."""
-    # Add service configuration
-    default_config.services["test"] = {
-        "enabled": True,
-        "autostart": True,
-        "metadata": {"test": "value"},
-    }
-
-    app = Application(default_config)
-    await app.initialize()
-
-    service = app.register_service(MockService, name="test")
-    assert service._config is not None
-    assert service._config.enabled is True
-    assert service.status.metadata["test"] == "value"
+        service = application.register_service(MockService)
+        assert service is not None
+        assert isinstance(service, MockService)
+        assert service.name in application._manager.services
 
 
 @pytest.mark.asyncio
-async def test_service_lifecycle(default_config):
-    """Test service lifecycle management."""
-    app = Application(default_config)
-    await app.initialize()
+async def test_service_registration_before_init(
+    app_config: ApplicationConfiguration,
+) -> None:
+    """Test service registration before initialization."""
+    app = Application(app_config)
 
-    service = app.register_service(MockService)
-
-    # Test service start
-    await app.start_service(service.name)
-    assert service.status.state == ServiceState.RUNNING
-
-    # Test service stop
-    await app.stop()
-    assert service.status.state == ServiceState.STOPPED
-
-
-@pytest.mark.asyncio
-async def test_api_endpoints(default_config):
-    """Test API endpoints."""
-    app = Application(default_config)
-    await app.initialize()
-
-    client = TestClient(app.api)
-
-    # Test status endpoint
-    response = client.get("/")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["version"] == default_config.version
-
-    # Test services endpoint
-    response = client.get("/services")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_application_context_manager(default_config):
-    """Test application as async context manager."""
-    async with Application(default_config) as app:
-        assert app._setup_complete is True
-        assert isinstance(app.api, FastAPI)
-
-        service = app.register_service(MockService)
-        assert service.name in app._services
-
-
-@pytest.mark.asyncio
-async def test_error_handling(default_config):
-    """Test error handling during operations."""
-    app = Application(default_config)
-
-    # Test operations before initialization
     with pytest.raises(RuntimeError):
         app.register_service(MockService)
 
-    with pytest.raises(RuntimeError):
-        await app.start_service("test")
 
-    # Test invalid service operations
-    await app.initialize()
-    with pytest.raises(ValueError):
-        await app.start_service("nonexistent")
+@pytest.mark.asyncio
+async def test_service_lifecycle(app: AsyncGenerator[Application, None]) -> None:
+    """Test service lifecycle management."""
+    async for application in app:
+        await application.initialize()
+
+        # Register and start service
+        service = application.register_service(MockService)
+        await application.start_service(service.name)
+        assert service.status.state == ServiceState.RUNNING
+        assert service.start_called
+
+        # Stop service
+        await application.stop_service(service.name)
+        assert service.status.state == ServiceState.STOPPED
+        assert service.stop_called
 
 
 @pytest.mark.asyncio
-async def test_service_duplicate_registration(default_config):
-    """Test handling of duplicate service registration."""
-    app = Application(default_config)
-    await app.initialize()
+async def test_get_service(app: AsyncGenerator[Application, None]) -> None:
+    """Test service retrieval."""
+    async for application in app:
+        await application.initialize()
 
-    # Register first service
-    service1 = app.register_service(MockService, name="test")
-    assert service1.name in app._services
+        service = application.register_service(MockService, name="test_service")
+        retrieved = application.get_service("test_service")
+        assert retrieved == service
 
-    # Attempt to register duplicate
-    with pytest.raises(ValueError):
-        app.register_service(MockService, name="test")
+        assert application.get_service("nonexistent") is None
 
 
 @pytest.mark.asyncio
-async def test_application_cleanup(default_config):
-    """Test proper cleanup during application stop."""
-    app = Application(default_config)
-    await app.initialize()
+async def test_application_context_manager(
+    app_config: ApplicationConfiguration,
+) -> None:
+    """Test application as async context manager."""
+    app = Application(app_config)
 
-    # Register multiple services
-    service1 = app.register_service(MockService, name="service1")
-    service2 = app.register_service(MockService, name="service2")
+    async with app as context:
+        assert context.is_initialized
+        assert isinstance(context.api, FastAPI)
+        assert context._manager is not None
+        assert context._manager.state == ServiceState.INITIALIZED
 
-    # Start services
-    await app.start_service("service1")
-    await app.start_service("service2")
+    assert context._manager.state == ServiceState.STOPPED
 
-    # Stop application
-    await app.stop()
 
-    # Verify all services are stopped
-    assert service1.status.state == ServiceState.STOPPED
-    assert service2.status.state == ServiceState.STOPPED
-    assert app._state == ServiceState.STOPPED
+@pytest.mark.asyncio
+async def test_application_error_handling(
+    app: AsyncGenerator[Application, None],
+) -> None:
+    """Test application error handling during start."""
+    async for application in app:
+        await application.initialize()  # Ensure manager is initialized
+        with patch("uvicorn.Server.serve") as mock_serve:
+            mock_serve.side_effect = Exception("Server error")
+
+            with pytest.raises(Exception):
+                await application.start()
+
+            assert application._manager is not None
+            assert application._manager.state == ServiceState.ERROR

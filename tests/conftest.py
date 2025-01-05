@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from processpype.core.config.models import (
+from processpype.core.configuration.models import (
     ApplicationConfiguration,
     ServiceConfiguration,
 )
