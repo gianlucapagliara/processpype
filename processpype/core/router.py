@@ -83,6 +83,11 @@ class ApplicationRouter(APIRouter):
                 services={name: svc.status for name, svc in services.items()},
             )
 
+        @self.get("/health")
+        async def health_check() -> dict[str, str]:
+            """Health check endpoint."""
+            return {"status": "healthy"}
+
         @self.get("/services")
         async def list_services() -> dict[str, str]:
             """List all registered services.

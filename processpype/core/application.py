@@ -31,6 +31,7 @@ class Application:
         self._initialized = False
         self._lock = asyncio.Lock()
         self._manager: ApplicationManager | None = None
+        self._api = self.create_api()
 
     @classmethod
     async def create(
@@ -51,6 +52,11 @@ class Application:
         return cls(config)
 
     # === Properties ===
+
+    @property
+    def api(self) -> FastAPI:
+        """Get the FastAPI instance."""
+        return self._api
 
     @property
     def is_initialized(self) -> bool:
@@ -125,6 +131,16 @@ class Application:
 
     # === Initialization ===
 
+    def create_api(self) -> FastAPI:
+        """Create the FastAPI instance."""
+        api = FastAPI(title=self._config.title, version=self._config.version)
+        setup_logfire(
+            api,
+            token=self._config.logfire_key,
+            environment=self._config.environment,
+        )
+        return api
+
     async def initialize(self) -> None:
         """Initialize the application asynchronously."""
         async with self._lock:
@@ -133,15 +149,7 @@ class Application:
 
             setup_timezone()
 
-            # Initialize FastAPI
-            self.api = FastAPI(title=self._config.title, version=self._config.version)
-
             # Setup logging
-            setup_logfire(
-                self.api,
-                token=self._config.logfire_key,
-                environment=self._config.environment,
-            )
             self.logger = get_service_logger("application")
 
             # Initialize manager
