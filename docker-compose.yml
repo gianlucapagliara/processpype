@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - APP_TITLE=ProcessPype Dev
+      - APP_ENV=development
+      - APP_DEBUG=true
+      - ENABLED_SERVICES=monitoring
+      - LOGFIRE_KEY=
+    volumes:
+      - ./processpype:/app/processpype
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 10s
+
+  # Example of a production-like setup with multiple services
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    ports:
+      - "8001:8000"
+    environment:
+      - APP_TITLE=ProcessPype Production
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - ENABLED_SERVICES=monitoring,other_service
+      - LOGFIRE_KEY=
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 10s
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - APP_ENV=test
+      - APP_DEBUG=true
+      - LOGFIRE_KEY=
+    command: /root/.local/bin/poetry run pytest 
