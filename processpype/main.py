@@ -7,15 +7,7 @@ from typing import Any
 
 from processpype.core import Application
 from processpype.core.configuration.models import ApplicationConfiguration
-
-# Import available services
-from processpype.services.monitoring import MonitoringService
-
-# Service registry - add new services here
-AVAILABLE_SERVICES = {
-    "monitoring": MonitoringService,
-    # Add more services here
-}
+from processpype.services import get_available_services
 
 
 def get_env_config() -> dict[str, Any]:
@@ -75,12 +67,12 @@ async def startup_event() -> None:
     services_to_enable = os.getenv("ENABLED_SERVICES", "").split(",")
     for service_name in services_to_enable:
         service_name = service_name.strip()
-        if not service_name or service_name not in AVAILABLE_SERVICES:
+        if service_name not in get_available_services():
+            app.logger.warning(f"Service {service_name} not found")
             continue
 
         try:
-            service = app.register_service(AVAILABLE_SERVICES[service_name])
-            await app.start_service(service.name)
+            await app.start_service(service_name)
             app.logger.info(f"Service {service_name} registered and started")
         except Exception as e:
             app.logger.error(f"Failed to start service {service_name}: {e}")

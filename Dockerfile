@@ -24,7 +24,7 @@ RUN /root/.local/bin/poetry config virtualenvs.create false \
 COPY . .
 
 # Install the application
-RUN /root/.local/bin/poetry install --no-interaction --no-ansi
+RUN /root/.local/bin/poetry install --no-interaction --no-ansi -E all_py313
 
 # Runtime stage
 FROM python:3.13-slim as runtime
