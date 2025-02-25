@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from processpype.core.logfire import (
     ServiceLogContext,
     get_service_logger,
+    instrument_fastapi,
     setup_logfire,
 )
 
@@ -41,16 +42,13 @@ def test_setup_logfire(mock_app: FastAPI) -> None:
     """Test Logfire setup configuration."""
     with (
         patch("logfire.configure") as mock_configure,
-        patch("logfire.instrument_pydantic") as mock_instrument_pydantic,
         patch("logfire.instrument_fastapi") as mock_instrument_fastapi,
-        patch("logging.basicConfig") as mock_basic_config,
     ):
-        setup_logfire(
-            app=mock_app, app_name="test_app", token="test_token", environment="testing"
-        )
+        # Call setup_logfire with the required token parameter
+        setup_logfire(token="test_token", environment="testing", app_name="test_app")
 
-        # Verify logging configuration
-        mock_basic_config.assert_called_once()
+        # Instrument FastAPI app separately
+        instrument_fastapi(mock_app)
 
         # Verify Logfire configuration
         mock_configure.assert_called_once_with(
@@ -58,17 +56,17 @@ def test_setup_logfire(mock_app: FastAPI) -> None:
         )
 
         # Verify instrumentation setup
-        mock_instrument_pydantic.assert_called_once()
         mock_instrument_fastapi.assert_called_once_with(mock_app)
 
 
 def test_setup_logfire_defaults(mock_app: FastAPI) -> None:
     """Test Logfire setup with default values."""
     with patch("logfire.configure") as mock_configure:
-        setup_logfire(app=mock_app)
+        # Call setup_logfire with the required token parameter
+        setup_logfire(token="test_token")
 
         mock_configure.assert_called_once_with(
-            service_name="processpype", token=None, environment=None
+            service_name="processpype", token="test_token", environment=None
         )
 
 

@@ -1,31 +1,54 @@
-"""Test configuration and fixtures."""
+"""Common test fixtures."""
 
 import asyncio
-import tempfile
-from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from processpype.core.configuration.models import (
-    ApplicationConfiguration,
-    ServiceConfiguration,
-)
+from processpype.core.configuration.models import ApplicationConfiguration
 
 
-@pytest.fixture
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for each test."""
-    loop = asyncio.new_event_loop()
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an event loop for tests."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest.fixture
-def temp_config_file() -> Generator[Path, None, None]:
-    """Create a temporary configuration file."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as f:
-        f.write("""
+def test_app() -> FastAPI:
+    """Create a test FastAPI application."""
+    return FastAPI(
+        title="Test App",
+        version="1.0.0",
+    )
+
+
+@pytest.fixture
+def test_client(test_app: FastAPI) -> TestClient:
+    """Create a test client for the FastAPI application."""
+    return TestClient(test_app)
+
+
+@pytest.fixture
+def test_config_dir(tmp_path: Path) -> Path:
+    """Create a temporary directory for test configuration files."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    return config_dir
+
+
+@pytest.fixture
+def test_config_file(test_config_dir: Path) -> Path:
+    """Create a test configuration file."""
+    config_file = test_config_dir / "test_config.yaml"
+    with open(config_file, "w") as f:
+        f.write(
+            """
 title: Test App
 version: 1.0.0
 host: localhost
@@ -34,18 +57,15 @@ debug: true
 environment: testing
 services:
   test_service:
-    enabled: true
     autostart: true
-    metadata:
-      key: value
-""")
-        f.flush()
-        yield Path(f.name)
+"""
+        )
+    return config_file
 
 
 @pytest.fixture
-def default_config() -> ApplicationConfiguration:
-    """Create a default application configuration."""
+def app_config() -> ApplicationConfiguration:
+    """Create a test application configuration."""
     return ApplicationConfiguration(
         title="Test App",
         version="1.0.0",
@@ -53,10 +73,5 @@ def default_config() -> ApplicationConfiguration:
         port=8080,
         debug=True,
         environment="testing",
+        services={},
     )
-
-
-@pytest.fixture
-def service_config() -> ServiceConfiguration:
-    """Create a test service configuration."""
-    return ServiceConfiguration(enabled=True, autostart=True, metadata={"key": "value"})

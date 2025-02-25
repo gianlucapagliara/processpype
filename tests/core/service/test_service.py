@@ -1,8 +1,11 @@
 """Unit tests for core service components."""
 
+import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import pytest
+from pydantic import Field
 
 from processpype.core.configuration.models import ServiceConfiguration
 from processpype.core.models import ServiceState
@@ -11,28 +14,54 @@ from processpype.core.service.manager import ServiceManager
 from processpype.core.service.router import ServiceRouter
 
 
+@pytest.fixture
+def event_loop():
+    """Create an event loop for tests."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+class MockServiceConfiguration(ServiceConfiguration):
+    """Mock service configuration."""
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MockServiceManager(ServiceManager):
+    """Test service manager implementation."""
+
+    def __init__(self, logger: logging.Logger):
+        super().__init__(logger)
+        self.started = False
+        self.stopped = False
+
+    async def start(self) -> None:
+        """Start the test service manager."""
+        self.started = True
+
+    async def stop(self) -> None:
+        """Stop the test service manager."""
+        self.stopped = True
+
+
 class MockService(Service):
     """Test service implementation."""
+
+    configuration_class = MockServiceConfiguration
+
+    if TYPE_CHECKING:
+        manager: MockServiceManager
 
     def __init__(self, name: str | None = None):
         self.manager_created = False
         self.router_created = False
         super().__init__(name)
 
-    async def start(self) -> None:
-        """Start the test service."""
-        await super().start()
-        self.status.state = ServiceState.RUNNING
-
-    async def stop(self) -> None:
-        """Stop the test service."""
-        await super().stop()
-        self.status.state = ServiceState.STOPPED
-
-    def create_manager(self) -> ServiceManager:
+    def create_manager(self) -> MockServiceManager:
         """Create test service manager."""
         self.manager_created = True
-        return ServiceManager(logging.getLogger("test.manager"))
+        return MockServiceManager(logging.getLogger("test.manager"))
 
     def create_router(self) -> ServiceRouter:
         """Create a mock service router."""
@@ -75,15 +104,14 @@ def test_service_logger() -> None:
 def test_service_configuration() -> None:
     """Test service configuration."""
     service = MockService()
-    config = ServiceConfiguration(
-        enabled=True,
+    config = MockServiceConfiguration(
         autostart=True,
         metadata={"key": "value"},
     )
 
     service.configure(config)
-    assert service._config == config
-    assert service.status.metadata == {"key": "value"}
+    assert service.config == config
+    assert service.status.metadata == config.model_dump(mode="json")
 
 
 def test_service_error_handling() -> None:
@@ -100,21 +128,30 @@ async def test_service_lifecycle() -> None:
     """Test service lifecycle management."""
     service = MockService()
 
+    # Configure the service before starting
+    config = MockServiceConfiguration(
+        autostart=True,
+        metadata={"key": "value"},
+    )
+    service.configure(config)
+
     # Test start
     await service.start()
     assert service.status.state.value == "running"
     assert service.status.error is None
+    assert service.manager.started is True
 
     # Test stop
     await service.stop()
     assert service.status.state.value == "stopped"
+    assert service.manager.stopped is True
 
 
 def test_service_manager() -> None:
     """Test service manager creation and access."""
     service = MockService()
     assert service.manager is not None
-    assert isinstance(service.manager, ServiceManager)
+    assert isinstance(service.manager, MockServiceManager)
 
 
 def test_service_router() -> None:

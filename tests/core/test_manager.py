@@ -1,7 +1,7 @@
 """Unit tests for application manager."""
 
 import logging
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from unittest.mock import MagicMock
 
 import pytest
@@ -42,22 +42,18 @@ class TestableService(Protocol):
         ...
 
 
-class MockService(Service):
-    """Mock service for testing."""
+class MockServiceManager(ServiceManager):
+    """Mock service manager for testing."""
 
-    def __init__(self, name: str | None = None):
-        """Initialize mock service.
+    def __init__(self, logger: logging.Logger):
+        """Initialize mock service manager.
 
         Args:
-            name: Optional service name
+            logger: Logger instance
         """
-        super().__init__(name)
-        # Test tracking attributes
+        super().__init__(logger)
         self._start_called = False
         self._stop_called = False
-        self._configure_called = False
-        self._config: ServiceConfiguration | None = None
-        self._logger = logging.getLogger(f"test.service.{self.name or 'mock'}")
 
     @property
     def start_called(self) -> bool:
@@ -69,6 +65,45 @@ class MockService(Service):
         """Check if stop was called."""
         return self._stop_called
 
+    async def start(self) -> None:
+        """Start the mock service manager."""
+        self._start_called = True
+
+    async def stop(self) -> None:
+        """Stop the mock service manager."""
+        self._stop_called = True
+
+
+class MockService(Service):
+    """Mock service for testing."""
+
+    configuration_class = ServiceConfiguration
+
+    if TYPE_CHECKING:
+        manager: MockServiceManager
+
+    def __init__(self, name: str | None = None):
+        """Initialize mock service.
+
+        Args:
+            name: Optional service name
+        """
+        # Test tracking attributes
+        self._configure_called = False
+        self._config: ServiceConfiguration | None = None
+        self._logger = logging.getLogger(f"test.service.{name or 'mock'}")
+        super().__init__(name)
+
+    @property
+    def start_called(self) -> bool:
+        """Check if start was called."""
+        return self.manager.start_called
+
+    @property
+    def stop_called(self) -> bool:
+        """Check if stop was called."""
+        return self.manager.stop_called
+
     @property
     def configure_called(self) -> bool:
         """Check if configure was called."""
@@ -79,26 +114,17 @@ class MockService(Service):
         """Get service configuration."""
         return self._config
 
-    async def start(self) -> None:
-        """Start the mock service."""
-        self._start_called = True
-        self.status.state = ServiceState.RUNNING
-
-    async def stop(self) -> None:
-        """Stop the mock service."""
-        self._stop_called = True
-        self.status.state = ServiceState.STOPPED
-
-    def configure(self, config: ServiceConfiguration) -> None:
+    def configure(self, config: ServiceConfiguration | dict) -> None:
         """Configure the mock service."""
+        super().configure(config)
         self._configure_called = True
-        self._config = config
+        self._config = self.config
 
-    def create_manager(self) -> ServiceManager:
+    def create_manager(self) -> MockServiceManager:
         """Create a mock service manager."""
         if self._logger is None:
             self._logger = logging.getLogger(f"test.service.{self.name or 'mock'}")
-        return ServiceManager(self._logger)
+        return MockServiceManager(self._logger)
 
     def create_router(self) -> ServiceRouter:
         """Create a mock service router."""
@@ -126,9 +152,7 @@ def app_config() -> ApplicationConfiguration:
         environment="testing",
         services={
             "test_service": ServiceConfiguration(
-                enabled=True,
                 autostart=True,
-                metadata={"key": "value"},
             )
         },
     )
@@ -158,7 +182,7 @@ async def test_service_registration(manager: ApplicationManager) -> None:
     assert isinstance(service, TestableService)
     assert service.configure_called
     assert service.config is not None
-    assert service.config.enabled
+    assert service.config.autostart
 
 
 async def test_service_registration_duplicate(manager: ApplicationManager) -> None:
@@ -247,8 +271,8 @@ async def test_start_enabled_services_error_handling(
     """Test error handling when starting enabled services."""
     # Create a service that raises an exception on start
     error_service = MockService(name="test_service")
-    error_service._start_called = False  # Reset the flag
-    error_service.start = MagicMock(side_effect=Exception("Start failed"))  # type: ignore[method-assign]
+    error_service.manager._start_called = False  # Reset the flag
+    error_service.manager.start = MagicMock(side_effect=Exception("Start failed"))  # type: ignore[method-assign]
     manager._services["test_service"] = error_service
 
     # Should not raise exception
@@ -278,8 +302,8 @@ async def test_stop_all_services_error_handling(
     """Test error handling when stopping all services."""
     # Create a service that raises an exception on stop
     error_service = MockService(name="test_service")
-    error_service._stop_called = False  # Reset the flag
-    error_service.stop = MagicMock(side_effect=Exception("Stop failed"))  # type: ignore[method-assign]
+    error_service.manager._stop_called = False  # Reset the flag
+    error_service.manager.stop = MagicMock(side_effect=Exception("Stop failed"))  # type: ignore[method-assign]
     manager._services["test_service"] = error_service
 
     # Should not raise exception

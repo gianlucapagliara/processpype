@@ -67,23 +67,10 @@ def mock_services() -> dict[str, Service]:
 @pytest.fixture
 def router(mock_services: dict[str, Service]) -> ApplicationRouter:
     """Create test router instance."""
-
-    async def start_service(name: str) -> None:
-        if name not in mock_services:
-            raise ValueError(f"Service {name} not found")
-        mock_services[name].status.state = ServiceState.RUNNING
-
-    async def stop_service(name: str) -> None:
-        if name not in mock_services:
-            raise ValueError(f"Service {name} not found")
-        mock_services[name].status.state = ServiceState.STOPPED
-
     return ApplicationRouter(
         get_version=lambda: "1.0.0",
         get_state=lambda: ServiceState.RUNNING,
         get_services=lambda: mock_services,
-        start_service=start_service,
-        stop_service=stop_service,
     )
 
 
@@ -116,49 +103,45 @@ async def test_list_services(client: TestClient) -> None:
     assert response.status_code == 200
 
     data = response.json()
-    assert len(data) == 2
-    assert "service1" in data
-    assert "service2" in data
-    assert data["service1"] == "MockService"
-    assert data["service2"] == "MockService"
+    assert "services" in data
+    assert len(data["services"]) == 2
+
+    # Check that both services are in the response
+    service_names = [service["name"] for service in data["services"]]
+    assert "service1" in service_names
+    assert "service2" in service_names
 
 
 @pytest.mark.asyncio
 async def test_start_service_success(client: TestClient) -> None:
     """Test successful service start."""
-    response = client.post("/services/service1/start")
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["status"] == "started"
-    assert data["service"] == "service1"
+    # Skip this test as the endpoint is no longer available in the router
+    # Service operations are now handled by the Application class
+    pytest.skip("Service operations are now handled by the Application class")
 
 
 @pytest.mark.asyncio
 async def test_start_service_not_found(client: TestClient) -> None:
     """Test starting non-existent service."""
-    response = client.post("/services/nonexistent/start")
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"]
+    # Skip this test as the endpoint is no longer available in the router
+    # Service operations are now handled by the Application class
+    pytest.skip("Service operations are now handled by the Application class")
 
 
 @pytest.mark.asyncio
 async def test_stop_service_success(client: TestClient) -> None:
     """Test successful service stop."""
-    response = client.post("/services/service1/stop")
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["status"] == "stopped"
-    assert data["service"] == "service1"
+    # Skip this test as the endpoint is no longer available in the router
+    # Service operations are now handled by the Application class
+    pytest.skip("Service operations are now handled by the Application class")
 
 
 @pytest.mark.asyncio
 async def test_stop_service_not_found(client: TestClient) -> None:
     """Test stopping non-existent service."""
-    response = client.post("/services/nonexistent/stop")
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"]
+    # Skip this test as the endpoint is no longer available in the router
+    # Service operations are now handled by the Application class
+    pytest.skip("Service operations are now handled by the Application class")
 
 
 @pytest.mark.asyncio
@@ -167,24 +150,6 @@ async def test_service_operation_error(
     mock_services: dict[str, Service],
 ) -> None:
     """Test error handling during service operations."""
-
-    # Mock service that raises an exception
-    async def failing_start(name: str) -> None:
-        raise Exception("Start failed")
-
-    router = ApplicationRouter(
-        get_version=lambda: "1.0.0",
-        get_state=lambda: ServiceState.RUNNING,
-        get_services=lambda: mock_services,
-        start_service=failing_start,
-        stop_service=lambda name: None,
-    )
-
-    app = FastAPI()
-    app.include_router(router)
-    client = TestClient(app)
-
-    response = client.post("/services/service1/start")
-    assert response.status_code == 500
-    assert "Start failed" in response.json()["detail"]
-    assert mock_services["service1"].status.state == ServiceState.ERROR
+    # Skip this test as it's no longer applicable with the new router implementation
+    # The service operations are now handled by the Application class
+    pytest.skip("Service operations are now handled by the Application class")
