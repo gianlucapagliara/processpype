@@ -57,7 +57,10 @@ def get_service_class(name: str) -> type[Service] | None:
 
 # Import all services to ensure they get registered
 from processpype.services.agent import AgentService  # noqa
+from processpype.services.database import DatabaseService  # noqa
 from processpype.services.monitoring import MonitoringService  # noqa
+from processpype.services.notification import NotificationService  # noqa
+from processpype.services.storage import StorageService  # noqa
 
 # Export all service classes
 __all__ = [
@@ -65,5 +68,8 @@ __all__ = [
     "get_available_services",
     "get_service_class",
     "AgentService",
+    "DatabaseService",
     "MonitoringService",
+    "NotificationService",
+    "StorageService",
 ]
