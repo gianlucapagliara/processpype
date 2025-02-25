@@ -27,6 +27,14 @@ class MonitoringManager(ServiceManager):
         """Get current system metrics."""
         return self._metrics
 
+    async def start(self) -> None:
+        """Start the monitoring manager."""
+        await self.start_monitoring()
+
+    async def stop(self) -> None:
+        """Stop the monitoring manager."""
+        await self.stop_monitoring()
+
     async def start_monitoring(self) -> None:
         """Start the monitoring loop."""
         self._monitor_task = asyncio.create_task(self._monitor_loop())
