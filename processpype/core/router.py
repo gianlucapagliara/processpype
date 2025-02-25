@@ -8,9 +8,17 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from .models import ApplicationStatus, ServiceState
-from .service.service import Service
+from .service import Service
+
+
+class ServiceRegistrationRequest(BaseModel):
+    """Service registration request model."""
+
+    service_name: str
+    instance_name: str | None = None
 
 
 class ApplicationRouter(APIRouter):
@@ -19,7 +27,7 @@ class ApplicationRouter(APIRouter):
     Provides REST API endpoints for:
     - Application status monitoring
     - Service listing
-    - Service lifecycle management (start/stop)
+    - Service registration and deregistration
     """
 
     def __init__(
@@ -28,8 +36,6 @@ class ApplicationRouter(APIRouter):
         get_version: Callable[[], str],
         get_state: Callable[[], ServiceState],
         get_services: Callable[[], dict[str, Service]],
-        start_service: Callable[[str], Any],
-        stop_service: Callable[[str], Any],
     ) -> None:
         """Initialize the application router.
 
@@ -37,12 +43,12 @@ class ApplicationRouter(APIRouter):
             get_version: Callback to retrieve application version
             get_state: Callback to retrieve current application state
             get_services: Callback to retrieve dictionary of all registered services
-            start_service: Callback to initiate service startup
-            stop_service: Callback to initiate service shutdown
         """
         super().__init__()
         self._setup_routes(
-            get_version, get_state, get_services, start_service, stop_service
+            get_version,
+            get_state,
+            get_services,
         )
 
     def _setup_routes(
@@ -50,23 +56,19 @@ class ApplicationRouter(APIRouter):
         get_version: Callable[[], str],
         get_state: Callable[[], ServiceState],
         get_services: Callable[[], dict[str, Service]],
-        start_service: Callable[[str], Any],
-        stop_service: Callable[[str], Any],
     ) -> None:
         """Setup application routes.
 
         Configures FastAPI routes for application management:
         - GET /: Application status endpoint
         - GET /services: Service listing endpoint
-        - POST /services/{service_name}/start: Service start endpoint
-        - POST /services/{service_name}/stop: Service stop endpoint
+        - POST /services/register: Service registration endpoint
+        - DELETE /services/{service_name}: Service deregistration endpoint
 
         Args:
             get_version: Callback to retrieve application version
             get_state: Callback to retrieve current application state
             get_services: Callback to retrieve dictionary of all registered services
-            start_service: Callback to initiate service startup
-            stop_service: Callback to initiate service shutdown
         """
 
         @self.get("/")
@@ -83,71 +85,111 @@ class ApplicationRouter(APIRouter):
                 services={name: svc.status for name, svc in services.items()},
             )
 
-        @self.get("/health")
-        async def health_check() -> dict[str, str]:
-            """Health check endpoint."""
-            return {"status": "healthy"}
-
         @self.get("/services")
-        async def list_services() -> dict[str, str]:
-            """List all registered services.
+        async def get_services_list() -> dict[str, Any]:
+            """Get list of registered services.
 
             Returns:
-                Dictionary mapping service names to their class names
+                Dictionary mapping service names to their status
             """
             services = get_services()
-            return {name: svc.__class__.__name__ for name, svc in services.items()}
+            return {
+                "services": [
+                    {
+                        "name": name,
+                        "state": svc.status.state,
+                        "is_configured": svc.status.is_configured,
+                        "error": svc.status.error,
+                    }
+                    for name, svc in services.items()
+                ]
+            }
 
-        @self.post("/services/{service_name}/start")
-        async def start_service_route(service_name: str) -> dict[str, str]:
-            """Start a service.
+        @self.post("/services/register")
+        async def register_service(
+            request: ServiceRegistrationRequest,
+        ) -> dict[str, Any]:
+            """Register a new service.
 
             Args:
-                service_name: Name of the service to start
+                request: Service registration request
 
             Returns:
-                Dictionary containing status confirmation
+                Dictionary containing registration status
 
             Raises:
-                HTTPException: If service not found or start operation fails
+                HTTPException: If service registration fails
             """
-            services = get_services()
-            service = services.get(service_name)
-            if not service:
-                raise HTTPException(
-                    status_code=404, detail=f"Service {service_name} not found"
+            try:
+                # Import here to avoid circular imports
+                from processpype.core.application import Application
+
+                # Get the current application instance
+                app = Application.get_instance()
+
+                if app is None:
+                    raise HTTPException(
+                        status_code=500, detail="Application instance not available"
+                    )
+
+                service = app.register_service_by_name(
+                    request.service_name, request.instance_name
                 )
 
-            try:
-                await start_service(service_name)
-                return {"status": "started", "service": service_name}
+                if service is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Service class '{request.service_name}' not found",
+                    )
+
+                return {
+                    "status": "registered",
+                    "service": service.name,
+                    "type": service.__class__.__name__,
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
             except Exception as e:
-                service.set_error(str(e))
                 raise HTTPException(status_code=500, detail=str(e)) from e
 
-        @self.post("/services/{service_name}/stop")
-        async def stop_service_route(service_name: str) -> dict[str, str]:
-            """Stop a service.
+        @self.delete("/services/{service_name}")
+        async def deregister_service(service_name: str) -> dict[str, Any]:
+            """Deregister a service.
 
             Args:
-                service_name: Name of the service to stop
+                service_name: Name of the service to deregister
 
             Returns:
-                Dictionary containing status confirmation
+                Dictionary containing deregistration status
 
             Raises:
-                HTTPException: If service not found or stop operation fails
+                HTTPException: If service deregistration fails
             """
-            services = get_services()
-            service = services.get(service_name)
-            if not service:
-                raise HTTPException(
-                    status_code=404, detail=f"Service {service_name} not found"
-                )
-
             try:
-                await stop_service(service_name)
-                return {"status": "stopped", "service": service_name}
+                # Import here to avoid circular imports
+                from processpype.core.application import Application
+
+                # Get the current application instance
+                app = Application.get_instance()
+
+                if app is None:
+                    raise HTTPException(
+                        status_code=500, detail="Application instance not available"
+                    )
+
+                success = await app.deregister_service(service_name)
+
+                if not success:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to deregister service '{service_name}'",
+                    )
+
+                return {
+                    "status": "deregistered",
+                    "service": service_name,
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e)) from e
             except Exception as e:
-                service.set_error(str(e))
                 raise HTTPException(status_code=500, detail=str(e)) from e

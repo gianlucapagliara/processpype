@@ -1,7 +1,5 @@
 """Configuration models for ProcessPype."""
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
@@ -18,13 +16,15 @@ class ConfigurationModel(BaseModel):
 class ServiceConfiguration(ConfigurationModel):
     """Base service configuration model."""
 
-    name: str | None = Field(default=None, description="Service name")
-    enabled: bool = Field(default=True, description="Whether the service is enabled")
-    autostart: bool = Field(
-        default=False, description="Whether to start the service automatically"
+    enabled: bool = Field(
+        default=True,
+        description="Whether the service is enabled",
+        exclude=True,
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Service metadata"
+    autostart: bool = Field(
+        default=False,
+        description="Whether to start the service automatically",
+        exclude=True,
     )
 
 

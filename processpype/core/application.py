@@ -1,8 +1,9 @@
 """Core application class for ProcessPype."""
 
 import asyncio
+import logging
 from types import TracebackType
-from typing import Any
+from typing import Any, Optional
 
 import uvicorn
 from fastapi import FastAPI
@@ -12,7 +13,7 @@ from processpype.core.system import setup_timezone
 
 from .configuration import ConfigurationManager
 from .configuration.models import ApplicationConfiguration
-from .logfire import get_service_logger, setup_logfire
+from .logfire import get_service_logger, instrument_fastapi, setup_logfire
 from .models import ServiceState
 from .router import ApplicationRouter
 from .service import Service
@@ -20,6 +21,9 @@ from .service import Service
 
 class Application:
     """Core application with built-in FastAPI integration."""
+
+    # Class variable to store the singleton instance
+    _instance: Optional["Application"] = None
 
     def __init__(self, config: ApplicationConfiguration):
         """Initialize the application.
@@ -32,6 +36,18 @@ class Application:
         self._lock = asyncio.Lock()
         self._manager: ApplicationManager | None = None
         self._api = self.create_api()
+
+        # Set the singleton instance
+        Application._instance = self
+
+    @classmethod
+    def get_instance(cls) -> Optional["Application"]:
+        """Get the singleton application instance.
+
+        Returns:
+            The application instance or None if not initialized
+        """
+        return cls._instance
 
     @classmethod
     async def create(
@@ -100,12 +116,14 @@ class Application:
             await server.serve()
         except Exception as e:
             self._manager.set_state(ServiceState.ERROR)
-            self.logger.error(f"Failed to start application: {e}")
+            self.logger.error(f"Application error: {e}")
             raise
+        finally:
+            await self.stop()
 
     async def stop(self) -> None:
         """Stop the application and all services."""
-        if not self.is_initialized or not self._manager:
+        if not self._manager:
             return
 
         self._manager.set_state(ServiceState.STOPPING)
@@ -116,8 +134,9 @@ class Application:
         self._manager.set_state(ServiceState.STOPPED)
 
     async def __aenter__(self) -> "Application":
-        """Async context manager entry."""
-        await self.initialize()
+        """Enter async context manager."""
+        if not self.is_initialized:
+            await self.initialize()
         return self
 
     async def __aexit__(
@@ -126,55 +145,55 @@ class Application:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Async context manager exit."""
+        """Exit async context manager."""
         await self.stop()
 
     # === Initialization ===
 
-    def create_api(self) -> FastAPI:
-        """Create the FastAPI instance."""
-        api = FastAPI(title=self._config.title, version=self._config.version)
-        setup_logfire(
-            api,
-            token=self._config.logfire_key,
-            environment=self._config.environment,
-        )
-        return api
-
     async def initialize(self) -> None:
-        """Initialize the application asynchronously."""
+        """Initialize the application.
+
+        This method sets up logging, timezone, and creates the application manager.
+        """
         async with self._lock:
-            if self.is_initialized:
+            if self._initialized:
                 return
 
+            # Setup timezone
             setup_timezone()
 
             # Setup logging
-            self.logger = get_service_logger("application")
+            self.logger.info("Initializing application")
+            if self._config.logfire_key:
+                setup_logfire(
+                    token=self._config.logfire_key, environment=self._config.environment
+                )
+                instrument_fastapi(self.api)
 
-            # Initialize manager
-            self.initialize_manager()
+            # Create application manager
+            self._manager = ApplicationManager(self.logger, self._config)
 
-            # Setup core routes
-            self.initialize_router()
-            self.logger.info(
-                "Application initialized",
-                extra={
-                    "host": self._config.host,
-                    "port": self._config.port,
-                    "version": self._config.version,
-                    "environment": self._config.environment,
-                },
-            )
+            # Setup API routes
+            self._setup_api_routes()
 
             self._initialized = True
+            self.logger.info("Application initialized")
 
-    def initialize_manager(self) -> None:
-        """Initialize the application manager."""
-        self._manager = ApplicationManager(self.logger, self._config)
-        self._manager.set_state(ServiceState.INITIALIZED)
+    @property
+    def logger(self) -> logging.Logger:
+        """Get the application logger."""
+        return get_service_logger("app")
 
-    def initialize_router(self) -> None:
+    def create_api(self) -> FastAPI:
+        """Create the FastAPI instance."""
+        return FastAPI(
+            title=self._config.title,
+            version=self._config.version,
+            debug=self._config.debug,
+        )
+
+    def _setup_api_routes(self) -> None:
+        """Setup API routes."""
         if self._manager is None:
             raise RuntimeError("Application manager not initialized")
 
@@ -184,8 +203,6 @@ class Application:
             if self._manager
             else ServiceState.STOPPED,
             get_services=lambda: self._manager.services if self._manager else {},
-            start_service=self._manager.start_service,
-            stop_service=self._manager.stop_service,
         )
         self.api.include_router(router)
 
@@ -198,7 +215,7 @@ class Application:
 
         Args:
             service_class: Service class to register
-            name: Optional service name override
+            name: Optional service name override. If not provided, a unique name will be generated.
 
         Returns:
             The registered service instance
@@ -218,11 +235,95 @@ class Application:
 
         return service
 
+    def register_service_by_name(
+        self, service_name: str, instance_name: str | None = None
+    ) -> Service | None:
+        """Register a service by its registered name.
+
+        This method looks up a service class in the service registry and registers
+        an instance of it with the application.
+
+        Args:
+            service_name: Name of the service class to register (without 'service' suffix)
+            instance_name: Optional instance name override
+
+        Returns:
+            The registered service instance or None if service class not found
+
+        Raises:
+            RuntimeError: If application is not initialized
+            ValueError: If service name is already registered
+        """
+        try:
+            # Import here to avoid circular imports
+            from processpype.services import get_service_class
+
+            service_class = get_service_class(service_name)
+            if service_class is None:
+                self.logger.warning(
+                    f"Service class '{service_name}' not found in registry"
+                )
+                return None
+
+            return self.register_service(service_class, instance_name)
+        except ImportError:
+            self.logger.error("Failed to import service registry")
+            return None
+
+    async def deregister_service(self, service_name: str) -> bool:
+        """Deregister a service by name.
+
+        This method stops the service if it's running and removes it from the application.
+
+        Args:
+            service_name: Name of the service to deregister
+
+        Returns:
+            True if the service was deregistered, False otherwise
+
+        Raises:
+            ValueError: If service is not found
+        """
+        if not self.is_initialized or not self._manager:
+            raise RuntimeError(
+                "Application must be initialized before deregistering services"
+            )
+
+        service = self._manager.get_service(service_name)
+        if not service:
+            raise ValueError(f"Service {service_name} not found")
+
+        # Stop the service if it's running
+        if service.status.state in (ServiceState.RUNNING, ServiceState.STARTING):
+            await self._manager.stop_service(service_name)
+
+        # Note: FastAPI doesn't provide a clean way to remove routers once added
+        # In a production environment, you would need to recreate the FastAPI app
+        # or use a more sophisticated approach to manage routes
+        self.logger.warning(
+            "Service router cannot be fully removed from FastAPI. "
+            "Routes will remain but service will be unavailable."
+        )
+
+        # Remove the service from the manager
+        if self._manager and service_name in self._manager.services:
+            del self._manager.services[service_name]
+            self.logger.info(f"Deregistered service: {service_name}")
+            return True
+
+        return False
+
     def get_service(self, name: str) -> Service | None:
         """Get a service by name."""
         if not self._manager:
             return None
         return self._manager.get_service(name)
+
+    def get_services_by_type(self, service_type: type[Service]) -> list[Service]:
+        """Get all services of a specific type."""
+        if not self._manager:
+            return []
+        return self._manager.get_services_by_type(service_type)
 
     async def start_service(self, service_name: str) -> None:
         """Start a service by name."""

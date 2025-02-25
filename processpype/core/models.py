@@ -15,6 +15,7 @@ class ServiceState(str, Enum):
 
     Represents the possible states a service can be in during its lifecycle:
     - INITIALIZED: Service is created but not yet started
+    - CONFIGURED: Service has been configured with valid settings
     - STARTING: Service is in the process of starting
     - RUNNING: Service is actively running
     - STOPPING: Service is in the process of shutting down
@@ -23,6 +24,7 @@ class ServiceState(str, Enum):
     """
 
     INITIALIZED = "initialized"
+    CONFIGURED = "configured"
     STARTING = "starting"
     RUNNING = "running"
     STOPPING = "stopping"
@@ -39,11 +41,13 @@ class ServiceStatus(BaseModel):
         state: Current state of the service
         error: Error message if service is in error state
         metadata: Additional service-specific status information
+        is_configured: Whether the service has been properly configured
     """
 
     state: ServiceState
     error: str | None = None
     metadata: dict[str, Any] = {}
+    is_configured: bool = False
 
 
 class ApplicationStatus(BaseModel):
