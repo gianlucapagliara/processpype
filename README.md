@@ -205,7 +205,7 @@ class MyService(Service):
         self.logger = get_service_logger(self.name)
 
     async def start(self) -> None:
-        self.logger.info("Starting service", extra={"config": self._config.dict()})
+        self.logger.info("Starting service", extra={"config": self.config.model_dump()})
 ```
 
 ## Testing Services
