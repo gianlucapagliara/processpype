@@ -22,10 +22,57 @@ class MonitoringManager(ServiceManager):
         self._monitor_task: asyncio.Task[None] | None = None
         self._interval = 5.0  # seconds
 
+        # Collection settings
+        self._collect_cpu = True
+        self._collect_memory = True
+        self._collect_disk = True
+        self._disk_path = "/"
+
     @property
     def metrics(self) -> dict[str, float]:
         """Get current system metrics."""
         return self._metrics
+
+    def set_interval(self, interval: float) -> None:
+        """Set the monitoring interval.
+
+        Args:
+            interval: Interval in seconds between metric collections
+        """
+        self._interval = interval
+        self.logger.debug(
+            "Updated monitoring interval",
+            extra={"interval": interval},
+        )
+
+    def set_collection_settings(
+        self,
+        collect_cpu: bool = True,
+        collect_memory: bool = True,
+        collect_disk: bool = True,
+        disk_path: str = "/",
+    ) -> None:
+        """Set the metric collection settings.
+
+        Args:
+            collect_cpu: Whether to collect CPU metrics
+            collect_memory: Whether to collect memory metrics
+            collect_disk: Whether to collect disk metrics
+            disk_path: Path to monitor for disk usage
+        """
+        self._collect_cpu = collect_cpu
+        self._collect_memory = collect_memory
+        self._collect_disk = collect_disk
+        self._disk_path = disk_path
+        self.logger.debug(
+            "Updated collection settings",
+            extra={
+                "collect_cpu": collect_cpu,
+                "collect_memory": collect_memory,
+                "collect_disk": collect_disk,
+                "disk_path": disk_path,
+            },
+        )
 
     async def start(self) -> None:
         """Start the monitoring manager."""
@@ -38,6 +85,7 @@ class MonitoringManager(ServiceManager):
     async def start_monitoring(self) -> None:
         """Start the monitoring loop."""
         self._monitor_task = asyncio.create_task(self._monitor_loop())
+        self.logger.info("Started monitoring loop")
 
     async def stop_monitoring(self) -> None:
         """Stop the monitoring loop."""
@@ -48,14 +96,26 @@ class MonitoringManager(ServiceManager):
             except asyncio.CancelledError:
                 pass
             self._monitor_task = None
+            self.logger.info("Stopped monitoring loop")
 
     async def _collect_metrics(self) -> dict[str, float]:
-        """Collect system metrics."""
-        return {
-            "cpu_percent": psutil.cpu_percent(interval=1),
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage("/").percent,
-        }
+        """Collect system metrics.
+
+        Returns:
+            A dictionary of collected metrics
+        """
+        metrics: dict[str, float] = {}
+
+        if self._collect_cpu:
+            metrics["cpu_percent"] = psutil.cpu_percent(interval=1)
+
+        if self._collect_memory:
+            metrics["memory_percent"] = psutil.virtual_memory().percent
+
+        if self._collect_disk:
+            metrics["disk_percent"] = psutil.disk_usage(self._disk_path).percent
+
+        return metrics
 
     async def _monitor_loop(self) -> None:
         """Monitor loop for collecting metrics."""
