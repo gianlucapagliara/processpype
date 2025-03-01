@@ -1,5 +1,6 @@
 """Base service class for ProcessPype."""
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Self
@@ -115,6 +116,13 @@ class Service(ABC):
         # Validate configuration
         self._validate_configuration()
 
+        if self.config is not None and self.config.autostart:
+            self.logger.info(
+                f"Autostarting {self.name} service",
+                extra={"service_state": self.status.state},
+            )
+            asyncio.ensure_future(self.start())
+
     def _validate_configuration(self) -> None:
         """Validate the service configuration.
 
@@ -188,6 +196,15 @@ class Service(ABC):
             ConfigurationError: If service is not properly configured
             Exception: If service fails to start
         """
+        if self.status.state not in [
+            ServiceState.INITIALIZED,
+            ServiceState.CONFIGURED,
+            ServiceState.STOPPED,
+        ]:
+            raise RuntimeError(
+                f"Service {self.name} cannot be started from state {self.status.state}"
+            )
+
         self.logger.info(
             f"Starting {self.name} service", extra={"service_state": self.status.state}
         )
