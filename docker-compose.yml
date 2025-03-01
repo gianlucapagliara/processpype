@@ -19,7 +19,7 @@ services:
     volumes:
       - ./processpype:/app/processpype
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,10 +38,10 @@ services:
       - APP_TITLE=ProcessPype Production
       - APP_ENV=production
       - APP_DEBUG=false
-      - ENABLED_SERVICES=monitoring,other_service
+      - ENABLED_SERVICES=monitoring,clock
       - LOGFIRE_KEY=
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,4 +61,4 @@ services:
       - APP_ENV=test
       - APP_DEBUG=true
       - LOGFIRE_KEY=
-    command: /root/.local/bin/poetry run pytest 
+    command: /root/.local/bin/poetry run pytest
