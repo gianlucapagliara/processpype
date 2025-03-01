@@ -81,6 +81,16 @@ try:
 except ImportError:
     pass
 
+try:
+    from processpype.services.clock import ClockService  # noqa
+except ImportError:
+    pass
+
+try:
+    from processpype.services.cronitor import CronitorService  # noqa
+except ImportError:
+    pass
+
 # Export all service classes
 __all__ = [
     "register_service_class",
@@ -91,4 +101,6 @@ __all__ = [
     "MonitoringService",
     "NotificationService",
     "StorageService",
+    "ClockService",
+    "CronitorService",
 ]
