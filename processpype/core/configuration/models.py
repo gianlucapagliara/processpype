@@ -19,12 +19,10 @@ class ServiceConfiguration(ConfigurationModel):
     enabled: bool = Field(
         default=True,
         description="Whether the service is enabled",
-        exclude=True,
     )
     autostart: bool = Field(
         default=False,
         description="Whether to start the service automatically",
-        exclude=True,
     )
 
 
