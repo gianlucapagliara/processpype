@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "processpype"
-version = "1.1.0"
+version = "1.1.2"
 description = "A modular application framework with built-in FastAPI integration and pluggable services"
 authors = ["Gianluca Pagliara <pagliara.gianluca@gmail.com>"]
 readme = "README.md"
