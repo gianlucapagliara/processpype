@@ -72,6 +72,9 @@ async def startup_event() -> None:
             continue
 
         try:
+            app.register_service(
+                get_available_services()[service_name], name=service_name
+            )
             await app.start_service(service_name)
             app.logger.info(f"Service {service_name} registered and started")
         except Exception as e:
