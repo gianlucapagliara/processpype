@@ -72,7 +72,7 @@ class ApplicationRouter(APIRouter):
         """
 
         @self.get("/")
-        async def get_status() -> ApplicationStatus:
+        async def get_status() -> dict[str, Any]:
             """Get application status.
 
             Returns:
@@ -83,7 +83,7 @@ class ApplicationRouter(APIRouter):
                 version=get_version(),
                 state=get_state(),
                 services={name: svc.status for name, svc in services.items()},
-            )
+            ).model_dump(mode="json")
 
         @self.get("/services")
         async def get_services_list() -> dict[str, Any]:

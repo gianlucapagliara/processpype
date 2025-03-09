@@ -42,9 +42,9 @@ class ServiceRouter(APIRouter):
         """Setup default service routes."""
 
         @self.get("")
-        async def get_status() -> ServiceStatus:
+        async def get_status() -> dict[str, Any]:
             """Get service status."""
-            return self._get_status()
+            return self._get_status().model_dump(mode="json")
 
         if self._start_service:
 
