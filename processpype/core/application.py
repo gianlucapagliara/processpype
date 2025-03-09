@@ -190,6 +190,15 @@ class Application:
             title=self._config.title,
             version=self._config.version,
             debug=self._config.debug,
+            docs_url=f"{self._config.api_prefix}/docs"
+            if self._config.api_prefix
+            else "/docs",
+            redoc_url=f"{self._config.api_prefix}/redoc"
+            if self._config.api_prefix
+            else "/redoc",
+            openapi_url=f"{self._config.api_prefix}/openapi.json"
+            if self._config.api_prefix
+            else "/openapi.json",
         )
 
     def _setup_api_routes(self) -> None:
@@ -204,7 +213,7 @@ class Application:
             else ServiceState.STOPPED,
             get_services=lambda: self._manager.services if self._manager else {},
         )
-        self.api.include_router(router)
+        self.api.include_router(router, prefix=self._config.api_prefix)
 
     # === Service Management ===
 
@@ -231,7 +240,7 @@ class Application:
 
         service = self._manager.register_service(service_class, name)
         if service.router:
-            self.api.include_router(service.router)
+            self.api.include_router(service.router, prefix=self._config.api_prefix)
 
         return service
 

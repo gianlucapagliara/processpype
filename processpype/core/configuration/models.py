@@ -1,6 +1,6 @@
 """Configuration models for ProcessPype."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConfigurationModel(BaseModel):
@@ -39,3 +39,11 @@ class ApplicationConfiguration(ConfigurationModel):
     services: dict[str, ServiceConfiguration] = Field(
         default_factory=dict, description="Service configurations"
     )
+    api_prefix: str = Field(default="", description="API prefix")
+
+    @field_validator("api_prefix")
+    def validate_api_prefix(cls, v: str) -> str:
+        """Validate the API prefix."""
+        if v and not v.startswith("/"):
+            v = f"/{v}"
+        return v
