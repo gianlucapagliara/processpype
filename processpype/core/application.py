@@ -131,6 +131,36 @@ class Application:
 
         # Stop all services
         await self._manager.stop_all_services()
+
+        # Wait for all services to be stopped with a timeout
+        timeout = self._config.closing_timeout_seconds
+        start_time = asyncio.get_event_loop().time()
+
+        while True:
+            # Check if all services are stopped
+            unstopped_services = [
+                service
+                for service in self._manager.services.values()
+                if service.status.state != ServiceState.STOPPED
+            ]
+
+            if not unstopped_services:
+                break
+
+            # Check if we've exceeded the timeout
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                self.logger.warning(
+                    "Timeout waiting for services to stop. Some services may not have stopped properly."
+                )
+                break
+            else:
+                self.logger.info(
+                    f"Waiting for {len(unstopped_services)} services to stop..."
+                )
+
+            # Wait a bit before checking again
+            await asyncio.sleep(1)
+
         self._manager.set_state(ServiceState.STOPPED)
 
     async def __aenter__(self) -> "Application":

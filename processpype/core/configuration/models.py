@@ -40,6 +40,9 @@ class ApplicationConfiguration(ConfigurationModel):
         default_factory=dict, description="Service configurations"
     )
     api_prefix: str = Field(default="", description="API prefix")
+    closing_timeout_seconds: int = Field(
+        default=60, description="Closing timeout in seconds"
+    )
 
     @field_validator("api_prefix")
     def validate_api_prefix(cls, v: str) -> str:
