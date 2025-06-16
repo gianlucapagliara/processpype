@@ -91,6 +91,11 @@ try:
 except ImportError:
     pass
 
+try:
+    from processpype.services.monitoring.cloudwatch import CloudWatchService  # noqa
+except ImportError:
+    pass
+
 # Export all service classes
 __all__ = [
     "register_service_class",
@@ -103,4 +108,5 @@ __all__ = [
     "StorageService",
     "ClockService",
     "CronitorService",
+    "CloudWatchService",
 ]

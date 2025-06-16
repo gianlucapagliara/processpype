@@ -14,4 +14,9 @@ try:
 except ImportError:
     pass
 
-__all__ = ["SystemMonitoringService", "CronitorService"]
+try:
+    from processpype.services.monitoring.cloudwatch import CloudWatchService  # noqa
+except ImportError:
+    pass
+
+__all__ = ["SystemMonitoringService", "CronitorService", "CloudWatchService"]
