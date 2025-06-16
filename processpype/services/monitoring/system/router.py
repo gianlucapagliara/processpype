@@ -7,7 +7,7 @@ from processpype.core.models import ServiceStatus
 from processpype.core.service.router import ServiceRouter
 
 
-class MonitoringServiceRouter(ServiceRouter):
+class SystemMonitoringRouter(ServiceRouter):
     """Router for monitoring service endpoints."""
 
     def __init__(

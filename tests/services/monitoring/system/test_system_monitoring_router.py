@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from processpype.core.models import ServiceState, ServiceStatus
-from processpype.services.monitoring.router import MonitoringServiceRouter
+from processpype.services.monitoring.system.router import SystemMonitoringRouter
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def router(
     configure_and_start_service,
 ):
     """Create a monitoring router for testing."""
-    return MonitoringServiceRouter(
+    return SystemMonitoringRouter(
         name="monitoring",
         get_status=get_status,
         get_metrics=get_metrics,

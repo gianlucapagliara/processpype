@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from processpype.services.cronitor.manager import CronitorManager
+from processpype.services.monitoring.cronitor.manager import CronitorManager
 
 
 @pytest.fixture
@@ -24,7 +24,9 @@ def cronitor_manager(logger: logging.Logger) -> CronitorManager:
 @pytest.mark.asyncio
 async def test_set_api_key(cronitor_manager: CronitorManager) -> None:
     """Test setting the API key."""
-    with patch("processpype.services.cronitor.manager.cronitor") as mock_cronitor:
+    with patch(
+        "processpype.services.monitoring.cronitor.manager.cronitor"
+    ) as mock_cronitor:
         cronitor_manager.set_api_key("test_api_key")
         assert cronitor_manager._api_key == "test_api_key"
         assert mock_cronitor.api_key == "test_api_key"
@@ -174,7 +176,9 @@ async def test_ping_cronitor(cronitor_manager: CronitorManager) -> None:
     cronitor_manager._metrics = {"test_metric": 10.0}
 
     # Mock the cronitor.Monitor class
-    with patch("processpype.services.cronitor.manager.cronitor") as mock_cronitor:
+    with patch(
+        "processpype.services.monitoring.cronitor.manager.cronitor"
+    ) as mock_cronitor:
         # Create a mock monitor instance
         mock_monitor = MagicMock()
         mock_cronitor.Monitor.return_value = mock_monitor
@@ -205,7 +209,9 @@ async def test_ping_cronitor_exception(cronitor_manager: CronitorManager) -> Non
     cronitor_manager._monitor_key = "test_monitor_key"
 
     # Mock the cronitor.Monitor class to raise an exception
-    with patch("processpype.services.cronitor.manager.cronitor") as mock_cronitor:
+    with patch(
+        "processpype.services.monitoring.cronitor.manager.cronitor"
+    ) as mock_cronitor:
         mock_cronitor.Monitor.side_effect = Exception("Test error")
 
         # Send ping

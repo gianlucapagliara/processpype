@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from processpype.services.monitoring.manager import MonitoringManager
+from processpype.services.monitoring.system.manager import SystemMonitoringManager
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def logger():
 @pytest.fixture
 def monitoring_manager(logger):
     """Create a monitoring manager for testing."""
-    return MonitoringManager(logger)
+    return SystemMonitoringManager(logger)
 
 
 @pytest.mark.asyncio

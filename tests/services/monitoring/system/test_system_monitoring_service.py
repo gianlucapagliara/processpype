@@ -5,14 +5,17 @@ from unittest.mock import AsyncMock
 import pytest
 
 from processpype.core.models import ServiceState
-from processpype.services.monitoring import MonitoringConfiguration, MonitoringService
-from processpype.services.monitoring.manager import MonitoringManager
+from processpype.services.monitoring.system import (
+    SystemMonitoringConfiguration,
+    SystemMonitoringService,
+)
+from processpype.services.monitoring.system.manager import SystemMonitoringManager
 
 
 @pytest.fixture
 def monitoring_config():
     """Create a monitoring configuration for testing."""
-    return MonitoringConfiguration(
+    return SystemMonitoringConfiguration(
         enabled=True,
         interval=5.0,
         collect_cpu=True,
@@ -25,7 +28,7 @@ def monitoring_config():
 @pytest.fixture
 def monitoring_service(monitoring_config):
     """Create a monitoring service for testing."""
-    service = MonitoringService()
+    service = SystemMonitoringService()
     service.configure(monitoring_config)
     return service
 
@@ -33,24 +36,24 @@ def monitoring_service(monitoring_config):
 @pytest.mark.asyncio
 async def test_create_manager():
     """Test creating a monitoring service manager."""
-    service = MonitoringService()
+    service = SystemMonitoringService()
 
     # Test the create_manager method
     manager = service.create_manager()
     assert manager is not None
-    assert isinstance(manager, MonitoringManager)
+    assert isinstance(manager, SystemMonitoringManager)
     assert hasattr(manager, "logger")
 
 
 @pytest.mark.asyncio
 async def test_create_router():
     """Test creating a monitoring service router."""
-    service = MonitoringService()
+    service = SystemMonitoringService()
 
     # Test the create_router method
     router = service.create_router()
     assert router is not None
-    assert router.prefix == "/services/monitoring"
+    assert router.prefix == "/services/system-monitoring"
 
 
 @pytest.mark.asyncio
@@ -59,7 +62,7 @@ async def test_manager_property(monitoring_service):
     # Test the manager property
     manager = monitoring_service.manager
     assert manager is not None
-    assert isinstance(manager, MonitoringManager)
+    assert isinstance(manager, SystemMonitoringManager)
     assert hasattr(manager, "logger")
 
 

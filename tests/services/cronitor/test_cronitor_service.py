@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from processpype.core.models import ServiceState
-from processpype.services.cronitor import CronitorConfiguration, CronitorService
-from processpype.services.cronitor.manager import CronitorManager
+from processpype.services.monitoring.cronitor import (
+    CronitorConfiguration,
+    CronitorService,
+)
+from processpype.services.monitoring.cronitor.manager import CronitorManager
 
 
 @pytest.fixture

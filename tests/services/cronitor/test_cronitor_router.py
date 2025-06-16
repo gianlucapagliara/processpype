@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from processpype.core.models import ServiceState, ServiceStatus
-from processpype.services.cronitor.router import CronitorServiceRouter
+from processpype.services.monitoring.cronitor.router import CronitorServiceRouter
 
 
 @pytest.fixture

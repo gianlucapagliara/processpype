@@ -8,7 +8,7 @@ import psutil
 from processpype.core.service.manager import ServiceManager
 
 
-class MonitoringManager(ServiceManager):
+class SystemMonitoringManager(ServiceManager):
     """Manager for system monitoring operations."""
 
     def __init__(self, logger: logging.Logger):

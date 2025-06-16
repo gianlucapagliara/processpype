@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 from processpype.core.configuration.models import ServiceConfiguration
 
 
-class MonitoringConfiguration(ServiceConfiguration):
+class SystemMonitoringConfiguration(ServiceConfiguration):
     """Configuration for the monitoring service."""
 
     interval: float = Field(

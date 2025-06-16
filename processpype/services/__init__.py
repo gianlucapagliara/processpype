@@ -67,7 +67,7 @@ except ImportError:
     pass
 
 try:
-    from processpype.services.monitoring import MonitoringService  # noqa
+    from processpype.services.monitoring.system import SystemMonitoringService  # noqa
 except ImportError:
     pass
 
@@ -87,7 +87,7 @@ except ImportError:
     pass
 
 try:
-    from processpype.services.cronitor import CronitorService  # noqa
+    from processpype.services.monitoring.cronitor import CronitorService  # noqa
 except ImportError:
     pass
 
@@ -98,7 +98,7 @@ __all__ = [
     "get_service_class",
     "AgentService",
     "DatabaseService",
-    "MonitoringService",
+    "SystemMonitoringService",
     "NotificationService",
     "StorageService",
     "ClockService",

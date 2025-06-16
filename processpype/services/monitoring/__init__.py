@@ -1,11 +1,17 @@
-"""Monitoring service module."""
+"""Monitoring services for ProcessPype.
 
-from processpype.services import register_service_class
+This package contains monitoring services for ProcessPype applications.
+"""
 
-from .config import MonitoringConfiguration
-from .service import MonitoringService
+# Import services to ensure they get registered
+try:
+    from processpype.services.monitoring.system import SystemMonitoringService  # noqa
+except ImportError:
+    pass
 
-# Register the service with the registry
-register_service_class(MonitoringService)
+try:
+    from processpype.services.monitoring.cronitor import CronitorService  # noqa
+except ImportError:
+    pass
 
-__all__ = ["MonitoringService", "MonitoringConfiguration"]
+__all__ = ["SystemMonitoringService", "CronitorService"]

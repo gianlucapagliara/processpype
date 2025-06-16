@@ -5,19 +5,28 @@ from typing import TYPE_CHECKING
 from processpype.core.service.router import ServiceRouter
 from processpype.core.service.service import Service
 
-from .config import MonitoringConfiguration
-from .manager import MonitoringManager
-from .router import MonitoringServiceRouter
+from .config import SystemMonitoringConfiguration
+from .manager import SystemMonitoringManager
+from .router import SystemMonitoringRouter
 
 
-class MonitoringService(Service):
+class SystemMonitoringService(Service):
     """Service for monitoring system resources."""
 
-    configuration_class = MonitoringConfiguration
+    configuration_class = SystemMonitoringConfiguration
 
     if TYPE_CHECKING:
-        manager: MonitoringManager
-        config: MonitoringConfiguration
+        manager: SystemMonitoringManager
+        config: SystemMonitoringConfiguration
+
+    def __init__(self, name: str | None = None):
+        """Initialize the system monitoring service.
+
+        Args:
+            name: Optional service name override
+        """
+        name = name or "system-monitoring"
+        super().__init__(name)
 
     def requires_configuration(self) -> bool:
         """Check if the service requires configuration before starting.
@@ -27,13 +36,13 @@ class MonitoringService(Service):
         """
         return False
 
-    def create_manager(self) -> MonitoringManager:
+    def create_manager(self) -> SystemMonitoringManager:
         """Create the monitoring manager.
 
         Returns:
             A monitoring manager instance.
         """
-        return MonitoringManager(
+        return SystemMonitoringManager(
             logger=self.logger,
         )
 
@@ -43,7 +52,7 @@ class MonitoringService(Service):
         Returns:
             A monitoring service router instance.
         """
-        return MonitoringServiceRouter(
+        return SystemMonitoringRouter(
             name=self.name,
             get_status=lambda: self.status,
             get_metrics=lambda: self.manager.metrics,

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from processpype.services.cronitor.config import CronitorConfiguration
+from processpype.services.monitoring.cronitor.config import CronitorConfiguration
 
 
 def test_default_config() -> None:
