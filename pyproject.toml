@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "processpype"
-version = "1.1.3"
+version = "1.1.5"
 description = "A modular application framework with built-in FastAPI integration and pluggable services"
 authors = ["Gianluca Pagliara <pagliara.gianluca@gmail.com>"]
 readme = "README.md"
@@ -33,7 +33,7 @@ storage = ["boto3"]
 database = ["sqlalchemy", "aiosqlite", "asyncpg"]
 database_py313 = ["sqlalchemy", "aiosqlite"]  # For Python 3.13 without asyncpg
 notifications = ["telethon", "aiosmtplib"]
-monitoring = ["cronitor"]
+monitoring = ["cronitor", "boto3"]
 all = ["agentspype", "boto3", "sqlalchemy", "aiosqlite", "asyncpg", "telethon", "aiosmtplib", "cronitor"]
 all_py313 = ["agentspype", "boto3", "sqlalchemy", "aiosqlite", "telethon", "aiosmtplib", "cronitor"]  # For Python 3.13 without asyncpg
 
