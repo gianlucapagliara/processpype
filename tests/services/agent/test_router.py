@@ -6,6 +6,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from processpype.core.models import ServiceState, ServiceStatus
+
 # Mock the agentspype imports
 mock_agent = MagicMock()
 mock_agent_module = MagicMock()
@@ -53,12 +55,12 @@ def mock_stop_agent() -> AsyncMock:
 def mock_get_status() -> MagicMock:
     """Create a mock function for getting service status."""
     return MagicMock(
-        return_value={
-            "state": "running",
-            "error": None,
-            "metadata": {},
-            "is_configured": False,
-        }
+        return_value=ServiceStatus(
+            state=ServiceState.RUNNING,
+            error=None,
+            metadata={},
+            is_configured=False,
+        )
     )
 
 
@@ -158,7 +160,7 @@ def test_get_service_status(client: TestClient, mock_get_status: MagicMock) -> N
     """Test getting service status."""
     response = client.get("/services/test_agent_service")
     assert response.status_code == 200
-    assert response.json() == mock_get_status.return_value
+    assert response.json() == mock_get_status.return_value.model_dump(mode="json")
     mock_get_status.assert_called_once()
 
 
