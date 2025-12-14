@@ -195,8 +195,13 @@ class Application:
             # Setup logging
             self.logger.info("Initializing application")
             if self._config.logfire_key:
+                self.logger.info(
+                    f"Setting up Logfire with environment: {self._config.environment} and app name: {self._config.title}"
+                )
                 setup_logfire(
-                    token=self._config.logfire_key, environment=self._config.environment
+                    token=self._config.logfire_key,
+                    environment=self._config.environment,
+                    app_name=self._config.title,
                 )
                 instrument_fastapi(self.api)
 
