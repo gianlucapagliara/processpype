@@ -206,7 +206,9 @@ class DatabaseManager(ServiceManager):
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_one(self, query: str, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
+    async def fetch_one(
+        self, query: str, *args: Any, **kwargs: Any
+    ) -> dict[str, Any] | None:
         """Fetch a single row from the database.
 
         Args:
@@ -236,7 +238,9 @@ class DatabaseManager(ServiceManager):
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_all(self, query: str, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+    async def fetch_all(
+        self, query: str, *args: Any, **kwargs: Any
+    ) -> list[dict[str, Any]]:
         """Fetch multiple rows from the database.
 
         Args:

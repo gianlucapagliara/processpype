@@ -41,7 +41,9 @@ class DatabaseService(Service):
         """
         return await self.manager.execute(query, *args, **kwargs)
 
-    async def fetch_one(self, query: str, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
+    async def fetch_one(
+        self, query: str, *args: Any, **kwargs: Any
+    ) -> dict[str, Any] | None:
         """Fetch a single row from the database.
 
         Args:
@@ -58,7 +60,9 @@ class DatabaseService(Service):
         """
         return await self.manager.fetch_one(query, *args, **kwargs)
 
-    async def fetch_all(self, query: str, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+    async def fetch_all(
+        self, query: str, *args: Any, **kwargs: Any
+    ) -> list[dict[str, Any]]:
         """Fetch multiple rows from the database.
 
         Args:
@@ -119,7 +123,9 @@ class DatabaseService(Service):
         try:
             await self.manager.start()
             self.status.state = ServiceState.RUNNING
-            db_config = cast(DatabaseConfiguration, self.config) if self.config else None
+            db_config = (
+                cast(DatabaseConfiguration, self.config) if self.config else None
+            )
             self.logger.info(
                 f"Database service started with engine {db_config.engine if db_config else 'unknown'}"
             )

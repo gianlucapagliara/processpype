@@ -108,9 +108,7 @@ async def test_main_router_api_prefix(application: Application) -> None:
 
     # Test the status endpoint
     response = client.get("/api")
-    assert response.status_code == 200, (
-        "Status endpoint should be accessible at /api"
-    )
+    assert response.status_code == 200, "Status endpoint should be accessible at /api"
 
     # Test the services listing endpoint
     response = client.get("/api/services")
@@ -120,9 +118,7 @@ async def test_main_router_api_prefix(application: Application) -> None:
 
     # Test the docs endpoints
     response = client.get("/api/docs")
-    assert response.status_code == 200, (
-        "Swagger UI should be accessible at /api/docs"
-    )
+    assert response.status_code == 200, "Swagger UI should be accessible at /api/docs"
 
     response = client.get("/api/redoc")
     assert response.status_code == 200, "ReDoc should be accessible at /api/redoc"
