@@ -1,0 +1,54 @@
+site_name: ProcessPype
+site_url: https://gianlucapagliara.github.io/processpype/
+site_description: A modular application framework with built-in FastAPI integration and pluggable services
+site_author: Gianluca Pagliara
+repo_url: https://github.com/gianlucapagliara/processpype
+repo_name: gianlucapagliara/processpype
+
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - python
+    - bash
+    - yaml
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - codehilite:
+      guess_lang: false
+  - def_list
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - User Guide:
+      - Application: guide/application.md
+      - Services: guide/services.md
+      - Configuration: guide/configuration.md
+      - Routing: guide/routing.md
+      - Docker: guide/docker.md
+  - Services:
+      - Clock: services/clock.md
+      - Database: services/database.md
+      - Monitoring: services/monitoring.md
+      - Notification: services/notification.md
+      - Storage: services/storage.md
+      - Agent: services/agent.md
+  - API Reference:
+      - Application: api/application.md
+      - BaseService: api/service.md
+      - ServiceManager: api/service-manager.md
+      - Models: api/models.md
+      - Configuration: api/configuration.md
+      - Router: api/router.md
+  - Development:
+      - Contributing: development/contributing.md
