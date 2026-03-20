@@ -4,13 +4,13 @@ This module defines the core data models used throughout the ProcessPype framewo
 It includes enums and Pydantic models for service state tracking and status management.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class ServiceState(str, Enum):
+class ServiceState(StrEnum):
     """Service state enumeration.
 
     Represents the possible states a service can be in during its lifecycle:

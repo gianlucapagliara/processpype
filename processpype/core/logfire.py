@@ -62,7 +62,11 @@ def instrument_fastapi(app: FastAPI) -> None:
     logfire.instrument_fastapi(app)
 
 
-def get_service_logger(service_name: str) -> logging.Logger:
+def get_service_logger(
+    service_name: str,
+    enable_logfire: bool = False,
+    prefix: str | None = "processpype.services",
+) -> logging.Logger:
     """Get a logger for a service with context.
 
     Creates a logger instance with service-specific naming and context.
@@ -74,5 +78,8 @@ def get_service_logger(service_name: str) -> logging.Logger:
     Returns:
         Logger instance configured with service context
     """
-    logger = logging.getLogger(f"processpype.services.{service_name}")
+    name = f"{prefix}.{service_name}" if prefix else service_name
+    logger = logging.getLogger(name)
+    if enable_logfire:
+        logger.addHandler(logfire.LogfireLoggingHandler())
     return logger

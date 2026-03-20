@@ -73,11 +73,7 @@ class ApplicationRouter(APIRouter):
 
         @self.get("/")
         async def get_status() -> dict[str, Any]:
-            """Get application status.
-
-            Returns:
-                ApplicationStatus object containing version, state, and services status
-            """
+            """Get application status."""
             services = get_services()
             return ApplicationStatus(
                 version=get_version(),
@@ -87,11 +83,7 @@ class ApplicationRouter(APIRouter):
 
         @self.get("/services")
         async def get_services_list() -> dict[str, Any]:
-            """Get list of registered services.
-
-            Returns:
-                Dictionary mapping service names to their status
-            """
+            """Get list of registered services."""
             services = get_services()
             return {
                 "services": [
@@ -109,87 +101,99 @@ class ApplicationRouter(APIRouter):
         async def register_service(
             request: ServiceRegistrationRequest,
         ) -> dict[str, Any]:
-            """Register a new service.
-
-            Args:
-                request: Service registration request
-
-            Returns:
-                Dictionary containing registration status
-
-            Raises:
-                HTTPException: If service registration fails
-            """
-            try:
-                # Import here to avoid circular imports
-                from processpype.core.application import Application
-
-                # Get the current application instance
-                app = Application.get_instance()
-
-                if app is None:
-                    raise HTTPException(
-                        status_code=500, detail="Application instance not available"
-                    )
-
-                service = app.register_service_by_name(
-                    request.service_name, request.instance_name
-                )
-
-                if service is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Service class '{request.service_name}' not found",
-                    )
-
-                return {
-                    "status": "registered",
-                    "service": service.name,
-                    "type": service.__class__.__name__,
-                }
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e)) from e
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e)) from e
+            """Register a new service."""
+            return await self._handle_register_service(request)
 
         @self.delete("/services/{service_name}")
         async def deregister_service(service_name: str) -> dict[str, Any]:
-            """Deregister a service.
+            """Deregister a service."""
+            return await self._handle_deregister_service(service_name)
 
-            Args:
-                service_name: Name of the service to deregister
+    async def _handle_register_service(
+        self, request: ServiceRegistrationRequest
+    ) -> dict[str, Any]:
+        """Handle service registration request.
 
-            Returns:
-                Dictionary containing deregistration status
+        Args:
+            request: Service registration request
 
-            Raises:
-                HTTPException: If service deregistration fails
-            """
-            try:
-                # Import here to avoid circular imports
-                from processpype.core.application import Application
+        Returns:
+            Dictionary containing registration status
 
-                # Get the current application instance
-                app = Application.get_instance()
+        Raises:
+            HTTPException: If service registration fails
+        """
+        try:
+            # Import here to avoid circular imports
+            from processpype.core.application import Application
 
-                if app is None:
-                    raise HTTPException(
-                        status_code=500, detail="Application instance not available"
-                    )
+            app = Application.get_instance()
 
-                success = await app.deregister_service(service_name)
+            if app is None:
+                raise HTTPException(
+                    status_code=500, detail="Application instance not available"
+                )
 
-                if not success:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to deregister service '{service_name}'",
-                    )
+            service = app.register_service_by_name(
+                request.service_name, request.instance_name
+            )
 
-                return {
-                    "status": "deregistered",
-                    "service": service_name,
-                }
-            except ValueError as e:
-                raise HTTPException(status_code=404, detail=str(e)) from e
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e)) from e
+            if service is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Service class '{request.service_name}' not found",
+                )
+
+            return {
+                "status": "registered",
+                "service": service.name,
+                "type": service.__class__.__name__,
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    async def _handle_deregister_service(self, service_name: str) -> dict[str, Any]:
+        """Handle service deregistration request.
+
+        Args:
+            service_name: Name of the service to deregister
+
+        Returns:
+            Dictionary containing deregistration status
+
+        Raises:
+            HTTPException: If service deregistration fails
+        """
+        try:
+            # Import here to avoid circular imports
+            from processpype.core.application import Application
+
+            app = Application.get_instance()
+
+            if app is None:
+                raise HTTPException(
+                    status_code=500, detail="Application instance not available"
+                )
+
+            success = await app.deregister_service(service_name)
+
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to deregister service '{service_name}'",
+                )
+
+            return {
+                "status": "deregistered",
+                "service": service_name,
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e

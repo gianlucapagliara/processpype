@@ -111,7 +111,8 @@ async def test_start_error(monitoring_service):
 
     # Verify the service is in error state
     assert monitoring_service.status.state == ServiceState.ERROR
-    assert "Failed to start monitoring service" in monitoring_service.status.error
+    assert monitoring_service.status.error is not None
+    assert "Test error" in monitoring_service.status.error
 
 
 @pytest.mark.asyncio
@@ -131,4 +132,5 @@ async def test_stop_error(monitoring_service):
 
     # Verify the service is in error state
     assert monitoring_service.status.state == ServiceState.ERROR
-    assert "Failed to stop monitoring service" in monitoring_service.status.error
+    assert monitoring_service.status.error is not None
+    assert "Test error" in monitoring_service.status.error

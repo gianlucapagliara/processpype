@@ -205,6 +205,9 @@ class Application:
                 )
                 instrument_fastapi(self.api)
 
+                logger = get_service_logger("app", enable_logfire=True)
+                logger.info("Test logfire logger")
+
             # Create application manager
             self._manager = ApplicationManager(self.logger, self._config)
 
@@ -217,7 +220,9 @@ class Application:
     @property
     def logger(self) -> logging.Logger:
         """Get the application logger."""
-        return get_service_logger("app")
+        return get_service_logger(
+            "app", enable_logfire=self.config.logfire_key is not None
+        )
 
     def create_api(self) -> FastAPI:
         """Create the FastAPI instance."""
@@ -243,9 +248,9 @@ class Application:
 
         router = ApplicationRouter(
             get_version=lambda: self._config.version,
-            get_state=lambda: self._manager.state
-            if self._manager
-            else ServiceState.STOPPED,
+            get_state=lambda: (
+                self._manager.state if self._manager else ServiceState.STOPPED
+            ),
             get_services=lambda: self._manager.services if self._manager else {},
         )
         self.api.include_router(router, prefix=self._config.api_prefix)

@@ -197,6 +197,92 @@ class LocalStorageBackend(StorageBackend):
         except Exception as e:
             raise StorageBackendError(f"Failed to delete object {path}: {e}") from e
 
+    def _read_metadata_file(self, rel_path: str) -> dict[str, Any]:
+        """Read metadata from a file if it exists.
+
+        Args:
+            rel_path: Relative path of the object
+
+        Returns:
+            Metadata dictionary (empty if not found or parse error)
+        """
+        metadata_path = self._get_metadata_path(rel_path)
+        if not metadata_path.exists():
+            return {}
+        try:
+            with open(metadata_path) as f:
+                return json.load(f)  # type: ignore[no-any-return]
+        except json.JSONDecodeError:
+            self.logger.warning(f"Failed to parse metadata for {rel_path}")
+            return {}
+
+    def _make_object_metadata(
+        self, file_path: str, base_path_str: str
+    ) -> StorageObjectMetadata:
+        """Create StorageObjectMetadata from a file path.
+
+        Args:
+            file_path: Absolute file path
+            base_path_str: Base path string for relative path calculation
+
+        Returns:
+            StorageObjectMetadata for the file
+        """
+        rel_path = os.path.relpath(file_path, base_path_str)
+        stats = os.stat(file_path)
+        last_modified = datetime.fromtimestamp(stats.st_mtime).isoformat()
+        metadata = self._read_metadata_file(rel_path)
+        return StorageObjectMetadata(
+            path=rel_path,
+            size=stats.st_size,
+            last_modified=last_modified,
+            metadata=metadata,
+        )
+
+    def _list_from_directory(
+        self, walk_root: Path, base_path_str: str
+    ) -> list[StorageObjectMetadata]:
+        """List all non-metadata files under a directory.
+
+        Args:
+            walk_root: Directory to walk
+            base_path_str: Base path for relative path calculation
+
+        Returns:
+            List of StorageObjectMetadata
+        """
+        result = []
+        for root, _, files in os.walk(walk_root):
+            for file in files:
+                if file.endswith(".metadata.json"):
+                    continue
+                file_path = os.path.join(root, file)
+                result.append(self._make_object_metadata(file_path, base_path_str))
+        return result
+
+    def _list_by_prefix_pattern(
+        self, prefix_path: Path, prefix_name: str, base_path_str: str
+    ) -> list[StorageObjectMetadata]:
+        """List files in a directory that match a prefix pattern.
+
+        Args:
+            prefix_path: Parent directory to search in
+            prefix_name: File name prefix to match
+            base_path_str: Base path for relative path calculation
+
+        Returns:
+            List of StorageObjectMetadata
+        """
+        result = []
+        for file in os.listdir(prefix_path):
+            if file.endswith(".metadata.json"):
+                continue
+            if file.startswith(prefix_name):
+                file_path = os.path.join(prefix_path, file)
+                if os.path.isfile(file_path):
+                    result.append(self._make_object_metadata(file_path, base_path_str))
+        return result
+
     async def list_objects(self, prefix: str = "") -> list[StorageObjectMetadata]:
         """List objects with the given prefix.
 
@@ -212,119 +298,18 @@ class LocalStorageBackend(StorageBackend):
         try:
             prefix_path = self._get_full_path(prefix)
             base_path_str = str(self._base_path)
-            result = []
 
-            # If the prefix is a directory, list all files in it
             if prefix_path.is_dir():
-                for root, _, files in os.walk(prefix_path):
-                    for file in files:
-                        # Skip metadata files
-                        if file.endswith(".metadata.json"):
-                            continue
-
-                        file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, base_path_str)
-                        stats = os.stat(file_path)
-                        last_modified = datetime.fromtimestamp(
-                            stats.st_mtime
-                        ).isoformat()
-
-                        # Get metadata if it exists
-                        metadata = {}
-                        metadata_path = self._get_metadata_path(rel_path)
-                        if metadata_path.exists():
-                            try:
-                                with open(metadata_path) as f:
-                                    metadata = json.load(f)
-                            except json.JSONDecodeError:
-                                self.logger.warning(
-                                    f"Failed to parse metadata for {rel_path}"
-                                )
-
-                        result.append(
-                            StorageObjectMetadata(
-                                path=rel_path,
-                                size=stats.st_size,
-                                last_modified=last_modified,
-                                metadata=metadata,
-                            )
-                        )
-            # If the prefix is a file pattern, list matching files
+                return self._list_from_directory(prefix_path, base_path_str)
             elif prefix:
                 prefix_dir = prefix_path.parent
                 if prefix_dir.is_dir():
-                    prefix_name = prefix_path.name
-                    for file in os.listdir(prefix_dir):
-                        # Skip metadata files
-                        if file.endswith(".metadata.json"):
-                            continue
-
-                        if file.startswith(prefix_name):
-                            file_path = os.path.join(prefix_dir, file)
-                            if os.path.isfile(file_path):
-                                rel_path = os.path.relpath(file_path, base_path_str)
-                                stats = os.stat(file_path)
-                                last_modified = datetime.fromtimestamp(
-                                    stats.st_mtime
-                                ).isoformat()
-
-                                # Get metadata if it exists
-                                metadata = {}
-                                metadata_path = self._get_metadata_path(rel_path)
-                                if metadata_path.exists():
-                                    try:
-                                        with open(metadata_path) as f:
-                                            metadata = json.load(f)
-                                    except json.JSONDecodeError:
-                                        self.logger.warning(
-                                            f"Failed to parse metadata for {rel_path}"
-                                        )
-
-                                result.append(
-                                    StorageObjectMetadata(
-                                        path=rel_path,
-                                        size=stats.st_size,
-                                        last_modified=last_modified,
-                                        metadata=metadata,
-                                    )
-                                )
-            # If no prefix, list all files
+                    return self._list_by_prefix_pattern(
+                        prefix_dir, prefix_path.name, base_path_str
+                    )
+                return []
             else:
-                for root, _, files in os.walk(self._base_path):
-                    for file in files:
-                        # Skip metadata files
-                        if file.endswith(".metadata.json"):
-                            continue
-
-                        file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, base_path_str)
-                        stats = os.stat(file_path)
-                        last_modified = datetime.fromtimestamp(
-                            stats.st_mtime
-                        ).isoformat()
-
-                        # Get metadata if it exists
-                        metadata = {}
-                        metadata_path = self._get_metadata_path(rel_path)
-                        if metadata_path.exists():
-                            try:
-                                with open(metadata_path) as f:
-                                    metadata = json.load(f)
-                            except json.JSONDecodeError:
-                                self.logger.warning(
-                                    f"Failed to parse metadata for {rel_path}"
-                                )
-
-                        result.append(
-                            StorageObjectMetadata(
-                                path=rel_path,
-                                size=stats.st_size,
-                                last_modified=last_modified,
-                                metadata=metadata,
-                            )
-                        )
-
-            return result
+                return self._list_from_directory(self._base_path, base_path_str)
         except Exception as e:
             raise StorageBackendError(
                 f"Failed to list objects with prefix {prefix}: {e}"

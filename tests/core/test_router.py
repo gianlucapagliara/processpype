@@ -35,7 +35,15 @@ class MockService(Service):
     def create_manager(self) -> ServiceManager:
         """Create a mock service manager."""
         logger_name = "test.service." + self.name
-        return ServiceManager(logging.getLogger(logger_name))
+
+        class _NoOpManager(ServiceManager):
+            async def start(self) -> None:
+                pass
+
+            async def stop(self) -> None:
+                pass
+
+        return _NoOpManager(logging.getLogger(logger_name))
 
     def create_router(self) -> ServiceRouter:
         """Create a mock service router."""

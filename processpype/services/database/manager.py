@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from processpype.core.service.manager import ServiceManager
 from processpype.services.database.models import DatabaseConfiguration, Transaction
@@ -23,8 +24,8 @@ class DatabaseManager(ServiceManager):
         """
         super().__init__(logger)
         self._config = config
-        self._engine = None
-        self._connection = None
+        self._engine: AsyncEngine | None = None
+        self._connection: AsyncConnection | None = None
 
     @property
     def engine(self) -> Any:
@@ -87,8 +88,8 @@ class DatabaseManager(ServiceManager):
             Exception: If the database connection fails
         """
         try:
-            import aiosqlite
-            from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+            import aiosqlite as _aiosqlite  # noqa: F401
+            from sqlalchemy.ext.asyncio import create_async_engine
         except ImportError as e:
             self.logger.error(f"Failed to import SQLite dependencies: {e}")
             raise ImportError(
@@ -127,8 +128,8 @@ class DatabaseManager(ServiceManager):
             Exception: If the database connection fails
         """
         try:
-            import asyncpg
-            from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+            import asyncpg as _asyncpg  # noqa: F401
+            from sqlalchemy.ext.asyncio import create_async_engine
         except ImportError as e:
             self.logger.error(f"Failed to import PostgreSQL dependencies: {e}")
             raise ImportError(
@@ -176,7 +177,7 @@ class DatabaseManager(ServiceManager):
 
         self.logger.info("Database manager stopped successfully")
 
-    async def execute(self, query: str, *args, **kwargs) -> Any:
+    async def execute(self, query: str, *args: Any, **kwargs: Any) -> Any:
         """Execute a database query.
 
         Args:
@@ -205,7 +206,7 @@ class DatabaseManager(ServiceManager):
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_one(self, query: str, *args, **kwargs) -> dict[str, Any] | None:
+    async def fetch_one(self, query: str, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
         """Fetch a single row from the database.
 
         Args:
@@ -235,7 +236,7 @@ class DatabaseManager(ServiceManager):
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_all(self, query: str, *args, **kwargs) -> list[dict[str, Any]]:
+    async def fetch_all(self, query: str, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         """Fetch multiple rows from the database.
 
         Args:

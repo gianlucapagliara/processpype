@@ -7,6 +7,16 @@ import pytest
 from processpype.core.service.manager import ServiceManager
 
 
+class ConcreteServiceManager(ServiceManager):
+    """Concrete implementation of ServiceManager for testing."""
+
+    async def start(self) -> None:
+        """Start the service manager."""
+
+    async def stop(self) -> None:
+        """Stop the service manager."""
+
+
 @pytest.fixture
 def logger() -> logging.Logger:
     """Create test logger."""
@@ -16,7 +26,7 @@ def logger() -> logging.Logger:
 @pytest.fixture
 def manager(logger: logging.Logger) -> ServiceManager:
     """Create test manager instance."""
-    return ServiceManager(logger)
+    return ConcreteServiceManager(logger)
 
 
 def test_manager_initialization(

@@ -146,13 +146,14 @@ async def test_service_status_endpoint(service: ClockService) -> None:
     with patch.object(
         ClockManager, "get_clock_status", return_value=mock_status, autospec=True
     ):
-        # Call the endpoint handler directly
-        response = await status_routes[0].endpoint()
-        assert isinstance(response, ServiceStatus)
-        assert response.state == ServiceState.RUNNING
+        # Call the endpoint handler directly - returns a dict
+        response_data = await status_routes[0].endpoint()
+        assert isinstance(response_data, dict)
+        status = ServiceStatus.model_validate(response_data)
+        assert status.state == ServiceState.RUNNING
 
         # Convert mode back to enum for comparison
-        metadata = response.metadata
+        metadata = status.metadata
         if "mode" in metadata:
             metadata["mode"] = ClockMode(metadata["mode"])
         assert metadata == mock_status

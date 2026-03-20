@@ -201,7 +201,7 @@ class NotificationServiceManager(ServiceManager):
         # Send the notification
         await self.notify(message, level, channels, metadata)
 
-    def add_telegram_message_handler(self, handler: Callable) -> None:
+    def add_telegram_message_handler(self, handler: Callable[..., Any]) -> None:
         """Add a handler for incoming Telegram messages.
 
         Args:
@@ -296,7 +296,7 @@ class NotificationService(Service):
         """
         self.manager.register_template(template)
 
-    def add_telegram_message_handler(self, handler: Callable) -> None:
+    def add_telegram_message_handler(self, handler: Callable[..., Any]) -> None:
         """Add a handler for incoming Telegram messages.
 
         Args:

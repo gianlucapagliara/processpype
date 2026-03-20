@@ -82,14 +82,19 @@ class CloudWatchRouter(ServiceRouter):
         self._get_custom_metric = get_custom_metric
         self._remove_custom_metric = remove_custom_metric
 
-        # Register additional endpoints - the 'self' is an APIRouter
+        self._setup_cloudwatch_routes(get_metrics, get_status, configure_service)
+
+    def _setup_cloudwatch_routes(
+        self,
+        get_metrics: Callable[[], dict[str, float]],
+        get_status: Callable[[], ServiceStatus],
+        configure_service: Callable[[Any], Any],
+    ) -> None:
+        """Register CloudWatch-specific routes."""
+
         @self.get("/metrics", tags=["monitoring", "cloudwatch"])
         async def get_current_metrics() -> dict[str, float]:
-            """Get the current metrics from CloudWatch monitoring.
-
-            Returns:
-                Dictionary of metrics
-            """
+            """Get the current metrics from CloudWatch monitoring."""
             metrics = get_metrics()
             if not metrics:
                 raise HTTPException(
@@ -98,101 +103,69 @@ class CloudWatchRouter(ServiceRouter):
                 )
             return metrics
 
-        # Override the configure endpoint to use our custom configuration class
         @self.post("/configure", tags=["monitoring", "cloudwatch"])
         async def update_configuration(
             config: CloudWatchConfiguration,
         ) -> ServiceStatus:
-            """Update the CloudWatch monitoring configuration.
-
-            Args:
-                config: New configuration
-
-            Returns:
-                Updated service status
-            """
+            """Update the CloudWatch monitoring configuration."""
             configure_service(config)
             return get_status()
 
-        # Add custom metrics endpoints if the functions are provided
         if (
             self._add_custom_metric
             and self._get_custom_metrics
             and self._get_custom_metric
             and self._remove_custom_metric
         ):
-            # Store the functions in local variables to ensure type checking knows they aren't None
-            _add_metric_fn = self._add_custom_metric
-            _get_metrics_fn = self._get_custom_metrics
-            _get_metric_fn = self._get_custom_metric
-            _remove_metric_fn = self._remove_custom_metric
+            self._setup_custom_metrics_routes()
 
-            @self.post("/metrics/custom", tags=["monitoring", "cloudwatch"])
-            async def add_metric(metric: CustomMetricModel) -> dict[str, str]:
-                """Add or update a custom metric.
+    def _setup_custom_metrics_routes(self) -> None:
+        """Register custom metrics CRUD endpoints."""
+        _add_metric_fn = self._add_custom_metric
+        _get_metrics_fn = self._get_custom_metrics
+        _get_metric_fn = self._get_custom_metric
+        _remove_metric_fn = self._remove_custom_metric
 
-                Args:
-                    metric: The custom metric to add or update
+        @self.post("/metrics/custom", tags=["monitoring", "cloudwatch"])
+        async def add_metric(metric: CustomMetricModel) -> dict[str, str]:
+            """Add or update a custom metric."""
+            _add_metric_fn(
+                metric.name,
+                metric.value,
+                metric.unit,
+                metric.dimensions,
+                metric.namespace,
+            )
+            return {
+                "status": "success",
+                "message": f"Custom metric '{metric.name}' added/updated",
+            }
 
-                Returns:
-                    Status message
-                """
-                _add_metric_fn(
-                    metric.name,
-                    metric.value,
-                    metric.unit,
-                    metric.dimensions,
-                    metric.namespace,
+        @self.get("/metrics/custom", tags=["monitoring", "cloudwatch"])
+        async def list_custom_metrics() -> dict[str, dict[str, Any]]:
+            """Get all custom metrics."""
+            return _get_metrics_fn()
+
+        @self.get("/metrics/custom/{name}", tags=["monitoring", "cloudwatch"])
+        async def get_metric(name: str) -> dict[str, Any]:
+            """Get a specific custom metric."""
+            metric = _get_metric_fn(name)
+            if not metric:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Custom metric '{name}' not found",
                 )
-                return {
-                    "status": "success",
-                    "message": f"Custom metric '{metric.name}' added/updated",
-                }
+            return metric
 
-            @self.get("/metrics/custom", tags=["monitoring", "cloudwatch"])
-            async def list_custom_metrics() -> dict[str, dict[str, Any]]:
-                """Get all custom metrics.
-
-                Returns:
-                    Dictionary of custom metrics
-                """
-                metrics = _get_metrics_fn()
-                return metrics
-
-            @self.get("/metrics/custom/{name}", tags=["monitoring", "cloudwatch"])
-            async def get_metric(name: str) -> dict[str, Any]:
-                """Get a specific custom metric.
-
-                Args:
-                    name: The name of the metric
-
-                Returns:
-                    The metric data
-                """
-                metric = _get_metric_fn(name)
-                if not metric:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Custom metric '{name}' not found",
-                    )
-                return metric
-
-            @self.delete("/metrics/custom/{name}", tags=["monitoring", "cloudwatch"])
-            async def delete_metric(name: str) -> dict[str, str]:
-                """Remove a custom metric.
-
-                Args:
-                    name: The name of the metric to remove
-
-                Returns:
-                    Status message
-                """
-                if not _remove_metric_fn(name):
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Custom metric '{name}' not found",
-                    )
-                return {
-                    "status": "success",
-                    "message": f"Custom metric '{name}' removed",
-                }
+        @self.delete("/metrics/custom/{name}", tags=["monitoring", "cloudwatch"])
+        async def delete_metric(name: str) -> dict[str, str]:
+            """Remove a custom metric."""
+            if not _remove_metric_fn(name):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Custom metric '{name}' not found",
+                )
+            return {
+                "status": "success",
+                "message": f"Custom metric '{name}' removed",
+            }

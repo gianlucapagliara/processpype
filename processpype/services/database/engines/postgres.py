@@ -48,7 +48,7 @@ class PostgresEngine:
             Exception: If the database connection fails
         """
         try:
-            import asyncpg
+            import asyncpg as _asyncpg  # noqa: F401
         except ImportError as e:
             self.logger.error(f"Failed to import PostgreSQL dependencies: {e}")
             raise ImportError(
@@ -91,7 +91,7 @@ class PostgresEngine:
 
         self.logger.info("PostgreSQL engine stopped successfully")
 
-    async def execute(self, query: str, *args, **kwargs) -> Any:
+    async def execute(self, query: str, *args: Any, **kwargs: Any) -> Any:
         """Execute a database query.
 
         Args:
@@ -121,7 +121,7 @@ class PostgresEngine:
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_one(self, query: str, *args, **kwargs) -> dict[str, Any] | None:
+    async def fetch_one(self, query: str, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
         """Fetch a single row from the database.
 
         Args:
@@ -152,7 +152,7 @@ class PostgresEngine:
             self.logger.error(f"Query execution failed: {e}", extra={"query": query})
             raise
 
-    async def fetch_all(self, query: str, *args, **kwargs) -> list[dict[str, Any]]:
+    async def fetch_all(self, query: str, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         """Fetch multiple rows from the database.
 
         Args:

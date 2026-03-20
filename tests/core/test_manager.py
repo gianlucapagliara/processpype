@@ -286,6 +286,10 @@ async def test_stop_all_services(manager: ApplicationManager) -> None:
     assert isinstance(service1, MockService)
     assert isinstance(service2, MockService)
 
+    # Mark services as configured so they can be started
+    service1.status.is_configured = True
+    service2.status.is_configured = True
+
     await manager.start_enabled_services()
     await manager.stop_all_services()
 

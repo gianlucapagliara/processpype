@@ -26,6 +26,16 @@ class ServiceConfiguration(ConfigurationModel):
     )
 
 
+class LogfireConfiguration(ConfigurationModel):
+    """Logfire configuration model."""
+
+    key: str | None = Field(default=None, description="Logfire API key")
+    environment: str = Field(default="development", description="Environment name")
+    app_name: str = Field(default="ProcessPype", description="Application name")
+    enabled: bool = Field(default=True, description="Whether to enable Logfire")
+    enable_logs: bool = Field(default=True, description="Whether to enable logs")
+
+
 class ApplicationConfiguration(ConfigurationModel):
     """Application configuration model."""
 
@@ -42,6 +52,10 @@ class ApplicationConfiguration(ConfigurationModel):
     api_prefix: str = Field(default="", description="API prefix")
     closing_timeout_seconds: int = Field(
         default=60, description="Closing timeout in seconds"
+    )
+    logfire: LogfireConfiguration | None = Field(
+        default=None,
+        description="Logfire configuration",
     )
 
     @field_validator("api_prefix")

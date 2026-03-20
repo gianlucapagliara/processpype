@@ -23,7 +23,7 @@ class ClockManager(ServiceManager):
         super().__init__(logger)
         self._clock: BaseClock | None = None
         self._config: ClockConfig | None = None
-        self._clock_task: asyncio.Task | None = None
+        self._clock_task: asyncio.Task[None] | None = None
 
     def get_default_configuration(self) -> ClockConfiguration:
         """Get the default configuration for the clock manager."""

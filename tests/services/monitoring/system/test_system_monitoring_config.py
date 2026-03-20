@@ -78,8 +78,6 @@ def test_to_dict():
         disk_path="/home",
     )
 
-    config_dict = config.model_dump()
-
     # Check that the dictionary contains the expected values
     assert config.interval == 10.0
     assert config.collect_cpu is False

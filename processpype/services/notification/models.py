@@ -1,6 +1,6 @@
 """Models for the NotificationService."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field
@@ -8,7 +8,7 @@ from pydantic import Field
 from processpype.core.configuration.models import ServiceConfiguration
 
 
-class NotificationLevel(str, Enum):
+class NotificationLevel(StrEnum):
     """Notification severity levels."""
 
     DEBUG = "debug"
@@ -18,7 +18,7 @@ class NotificationLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class NotificationChannel(str, Enum):
+class NotificationChannel(StrEnum):
     """Supported notification channels."""
 
     CONSOLE = "console"

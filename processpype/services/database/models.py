@@ -1,5 +1,6 @@
 """Database service models."""
 
+from types import TracebackType
 from typing import Any, Literal
 
 from pydantic import Field
@@ -57,7 +58,12 @@ class Transaction:
         self.transaction = await self.connection.begin()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Exit the transaction context.
 
         Args:

@@ -47,66 +47,78 @@ class ServiceRouter(APIRouter):
             return self._get_status().model_dump(mode="json")
 
         if self._start_service:
-
-            @self.post("/start")
-            async def start_service() -> dict[str, str]:
-                """Start the service."""
-                try:
-                    # We know this is not None because of the if check
-                    start_fn = cast(Callable[[], Any], self._start_service)
-                    await start_fn()
-                    return {"status": "started", "service": self.prefix.split("/")[-1]}
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e)) from e
+            self._setup_start_route()
 
         if self._stop_service:
-
-            @self.post("/stop")
-            async def stop_service() -> dict[str, str]:
-                """Stop the service."""
-                try:
-                    # We know this is not None because of the if check
-                    stop_fn = cast(Callable[[], Any], self._stop_service)
-                    await stop_fn()
-                    return {"status": "stopped", "service": self.prefix.split("/")[-1]}
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e)) from e
+            self._setup_stop_route()
 
         if self._configure_service:
-
-            @self.post("/configure")
-            async def configure_service(config: dict[str, Any]) -> dict[str, str]:
-                """Configure the service."""
-                try:
-                    # We know this is not None because of the if check
-                    configure_fn = cast(
-                        Callable[[dict[str, Any]], Any], self._configure_service
-                    )
-                    configure_fn(config)
-                    return {
-                        "status": "configured",
-                        "service": self.prefix.split("/")[-1],
-                    }
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e)) from e
+            self._setup_configure_route()
 
         if self._configure_and_start_service:
+            self._setup_configure_and_start_route()
 
-            @self.post("/configure_and_start")
-            async def configure_and_start_service(
-                config: dict[str, Any],
-            ) -> dict[str, str]:
-                """Configure and start the service."""
-                try:
-                    # We know this is not None because of the if check
-                    configure_and_start_fn = cast(
-                        Callable[[dict[str, Any]], Any],
-                        self._configure_and_start_service,
-                    )
-                    await configure_and_start_fn(config)
-                    return {
-                        "status": "configured and started",
-                        "service": self.prefix.split("/")[-1],
-                    }
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e)) from e
+    def _setup_start_route(self) -> None:
+        """Register the POST /start endpoint."""
+
+        @self.post("/start")
+        async def start_service() -> dict[str, str]:
+            """Start the service."""
+            try:
+                start_fn = cast(Callable[[], Any], self._start_service)
+                await start_fn()
+                return {"status": "started", "service": self.prefix.split("/")[-1]}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e)) from e
+
+    def _setup_stop_route(self) -> None:
+        """Register the POST /stop endpoint."""
+
+        @self.post("/stop")
+        async def stop_service() -> dict[str, str]:
+            """Stop the service."""
+            try:
+                stop_fn = cast(Callable[[], Any], self._stop_service)
+                await stop_fn()
+                return {"status": "stopped", "service": self.prefix.split("/")[-1]}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e)) from e
+
+    def _setup_configure_route(self) -> None:
+        """Register the POST /configure endpoint."""
+
+        @self.post("/configure")
+        async def configure_service(config: dict[str, Any]) -> dict[str, str]:
+            """Configure the service."""
+            try:
+                configure_fn = cast(
+                    Callable[[dict[str, Any]], Any], self._configure_service
+                )
+                configure_fn(config)
+                return {
+                    "status": "configured",
+                    "service": self.prefix.split("/")[-1],
+                }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e)) from e
+
+    def _setup_configure_and_start_route(self) -> None:
+        """Register the POST /configure_and_start endpoint."""
+
+        @self.post("/configure_and_start")
+        async def configure_and_start_service(
+            config: dict[str, Any],
+        ) -> dict[str, str]:
+            """Configure and start the service."""
+            try:
+                configure_and_start_fn = cast(
+                    Callable[[dict[str, Any]], Any],
+                    self._configure_and_start_service,
+                )
+                await configure_and_start_fn(config)
+                return {
+                    "status": "configured and started",
+                    "service": self.prefix.split("/")[-1],
+                }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e)) from e

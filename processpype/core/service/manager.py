@@ -1,7 +1,7 @@
 """Base service manager class for ProcessPype."""
 
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 
 
 class ServiceManager(ABC):
@@ -28,23 +28,21 @@ class ServiceManager(ABC):
         """
         return self._logger
 
+    @abstractmethod
     async def start(self) -> None:
         """Start the service manager.
 
         This method should be implemented by subclasses to handle
-        service-specific startup logic. The default implementation
-        does nothing.
+        service-specific startup logic.
 
         Raises:
             Exception: If the service fails to start
         """
-        pass
 
+    @abstractmethod
     async def stop(self) -> None:
         """Stop the service manager.
 
         This method should be implemented by subclasses to handle
-        service-specific shutdown logic. The default implementation
-        does nothing.
+        service-specific shutdown logic.
         """
-        pass

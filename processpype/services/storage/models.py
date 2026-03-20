@@ -1,6 +1,6 @@
 """Models for the StorageService."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field
@@ -8,7 +8,7 @@ from pydantic import Field
 from processpype.core.configuration.models import ServiceConfiguration
 
 
-class StorageBackend(str, Enum):
+class StorageBackend(StrEnum):
     """Supported storage backends."""
 
     LOCAL = "local"

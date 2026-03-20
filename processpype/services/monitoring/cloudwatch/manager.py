@@ -29,7 +29,7 @@ class CloudWatchManager(ServiceManager):
         self._custom_metrics: dict[str, dict[str, Any]] = {}
         self._monitor_task: asyncio.Task[None] | None = None
         self._interval = 60.0  # seconds
-        self._cloudwatch_client = None
+        self._cloudwatch_client: Any = None
         self._namespace = "ProcessPype"
         self._region = "us-east-1"
         self._dimensions: list[dict[str, str]] = []
@@ -222,13 +222,11 @@ class CloudWatchManager(ServiceManager):
 
     async def start(self) -> None:
         """Start the CloudWatch monitoring manager."""
-        await super().start()
         await self.start_monitoring()
 
     async def stop(self) -> None:
         """Stop the CloudWatch monitoring manager."""
         await self.stop_monitoring()
-        await super().stop()
 
     async def start_monitoring(self) -> None:
         """Start the monitoring loop."""
@@ -275,6 +273,68 @@ class CloudWatchManager(ServiceManager):
 
         return metrics
 
+    def _get_metric_unit(self, name: str) -> str:
+        """Get the CloudWatch unit for a metric based on its name.
+
+        Args:
+            name: Metric name
+
+        Returns:
+            CloudWatch unit string
+        """
+        if name.endswith("Utilization"):
+            return "Percent"
+        if name.endswith("Available") or name.endswith("Used"):
+            return "Megabytes"
+        return "None"
+
+    def _build_system_metric_data(
+        self, metrics: dict[str, float], timestamp: datetime
+    ) -> list[dict[str, Any]]:
+        """Build metric data list for CloudWatch from system metrics.
+
+        Args:
+            metrics: Dictionary of metric name to value
+            timestamp: Timestamp for the metrics
+
+        Returns:
+            List of metric data dictionaries
+        """
+        return [
+            {
+                "MetricName": name,
+                "Dimensions": self._dimensions,
+                "Timestamp": timestamp,
+                "Value": value,
+                "Unit": self._get_metric_unit(name),
+            }
+            for name, value in metrics.items()
+        ]
+
+    def _group_custom_metrics_by_namespace(
+        self,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Group custom metrics by namespace.
+
+        Returns:
+            Dictionary mapping namespace to list of metric data
+        """
+        custom_metrics_by_namespace: dict[str, list[dict[str, Any]]] = {}
+        for name, metric_data in self._custom_metrics.items():
+            namespace = metric_data["namespace"]
+            if namespace not in custom_metrics_by_namespace:
+                custom_metrics_by_namespace[namespace] = []
+            custom_metrics_by_namespace[namespace].append(
+                {
+                    "MetricName": name,
+                    "Dimensions": metric_data["dimensions"],
+                    "Timestamp": metric_data["timestamp"],
+                    "Value": metric_data["value"],
+                    "Unit": metric_data["unit"],
+                }
+            )
+        return custom_metrics_by_namespace
+
     async def _send_metrics_to_cloudwatch(self, metrics: dict[str, float]) -> None:
         """Send metrics to CloudWatch.
 
@@ -289,75 +349,11 @@ class CloudWatchManager(ServiceManager):
 
         try:
             timestamp = datetime.utcnow()
-            system_metric_data = []
+            system_metric_data = self._build_system_metric_data(metrics, timestamp)
+            custom_metrics_by_namespace = self._group_custom_metrics_by_namespace()
 
-            # Process system metrics
-            for name, value in metrics.items():
-                system_metric_data.append(
-                    {
-                        "MetricName": name,
-                        "Dimensions": self._dimensions,
-                        "Timestamp": timestamp,
-                        "Value": value,
-                        "Unit": "Percent"
-                        if name.endswith("Utilization")
-                        else "Megabytes"
-                        if name.endswith("Available") or name.endswith("Used")
-                        else "None",
-                    }
-                )
-
-            # Group custom metrics by namespace
-            custom_metrics_by_namespace: dict[str, list[dict[str, Any]]] = {}
-            for name, metric_data in self._custom_metrics.items():
-                namespace = metric_data["namespace"]
-                if namespace not in custom_metrics_by_namespace:
-                    custom_metrics_by_namespace[namespace] = []
-
-                custom_metrics_by_namespace[namespace].append(
-                    {
-                        "MetricName": name,
-                        "Dimensions": metric_data["dimensions"],
-                        "Timestamp": metric_data["timestamp"],
-                        "Value": metric_data["value"],
-                        "Unit": metric_data["unit"],
-                    }
-                )
-
-            # Send system metrics
-            if system_metric_data:
-                # CloudWatch API has a limit of 20 metrics per request
-                for i in range(0, len(system_metric_data), 20):
-                    batch = system_metric_data[i : i + 20]
-                    await asyncio.to_thread(
-                        self._cloudwatch_client.put_metric_data,
-                        Namespace=self._namespace,
-                        MetricData=batch,
-                    )
-
-                self.logger.debug(
-                    "Sent system metrics to CloudWatch",
-                    extra={
-                        "metric_count": len(system_metric_data),
-                        "namespace": self._namespace,
-                    },
-                )
-
-            # Send custom metrics grouped by namespace
-            for namespace, metrics_data in custom_metrics_by_namespace.items():
-                # CloudWatch API has a limit of 20 metrics per request
-                for i in range(0, len(metrics_data), 20):
-                    batch = metrics_data[i : i + 20]
-                    await asyncio.to_thread(
-                        self._cloudwatch_client.put_metric_data,
-                        Namespace=namespace,
-                        MetricData=batch,
-                    )
-
-                self.logger.debug(
-                    "Sent custom metrics to CloudWatch",
-                    extra={"metric_count": len(metrics_data), "namespace": namespace},
-                )
+            await self._send_system_metrics(system_metric_data)
+            await self._send_custom_metrics(custom_metrics_by_namespace)
 
         except (BotoCoreError, ClientError) as e:
             self.logger.error(
@@ -368,6 +364,54 @@ class CloudWatchManager(ServiceManager):
             self.logger.error(
                 f"Unexpected error sending metrics to CloudWatch: {e}",
                 extra={"error": str(e)},
+            )
+
+    async def _send_system_metrics(
+        self, system_metric_data: list[dict[str, Any]]
+    ) -> None:
+        """Send system metrics to CloudWatch in batches.
+
+        Args:
+            system_metric_data: List of metric data dictionaries
+        """
+        if not system_metric_data:
+            return
+        # CloudWatch API has a limit of 20 metrics per request
+        for i in range(0, len(system_metric_data), 20):
+            batch = system_metric_data[i : i + 20]
+            await asyncio.to_thread(
+                self._cloudwatch_client.put_metric_data,
+                Namespace=self._namespace,
+                MetricData=batch,
+            )
+        self.logger.debug(
+            "Sent system metrics to CloudWatch",
+            extra={
+                "metric_count": len(system_metric_data),
+                "namespace": self._namespace,
+            },
+        )
+
+    async def _send_custom_metrics(
+        self, custom_metrics_by_namespace: dict[str, list[dict[str, Any]]]
+    ) -> None:
+        """Send custom metrics to CloudWatch grouped by namespace.
+
+        Args:
+            custom_metrics_by_namespace: Dictionary mapping namespace to metrics
+        """
+        for namespace, metrics_data in custom_metrics_by_namespace.items():
+            # CloudWatch API has a limit of 20 metrics per request
+            for i in range(0, len(metrics_data), 20):
+                batch = metrics_data[i : i + 20]
+                await asyncio.to_thread(
+                    self._cloudwatch_client.put_metric_data,
+                    Namespace=namespace,
+                    MetricData=batch,
+                )
+            self.logger.debug(
+                "Sent custom metrics to CloudWatch",
+                extra={"metric_count": len(metrics_data), "namespace": namespace},
             )
 
     async def _monitor_loop(self) -> None:

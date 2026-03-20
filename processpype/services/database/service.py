@@ -1,6 +1,6 @@
 """Database service implementation."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from processpype.core.models import ServiceState
 from processpype.core.service.service import ConfigurationError, Service
@@ -24,7 +24,7 @@ class DatabaseService(Service):
         """
         return DatabaseManager(self.logger)
 
-    async def execute(self, query: str, *args, **kwargs) -> Any:
+    async def execute(self, query: str, *args: Any, **kwargs: Any) -> Any:
         """Execute a database query.
 
         Args:
@@ -41,7 +41,7 @@ class DatabaseService(Service):
         """
         return await self.manager.execute(query, *args, **kwargs)
 
-    async def fetch_one(self, query: str, *args, **kwargs) -> dict[str, Any] | None:
+    async def fetch_one(self, query: str, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
         """Fetch a single row from the database.
 
         Args:
@@ -58,7 +58,7 @@ class DatabaseService(Service):
         """
         return await self.manager.fetch_one(query, *args, **kwargs)
 
-    async def fetch_all(self, query: str, *args, **kwargs) -> list[dict[str, Any]]:
+    async def fetch_all(self, query: str, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         """Fetch multiple rows from the database.
 
         Args:
@@ -113,14 +113,15 @@ class DatabaseService(Service):
 
         # Configure the manager with the service configuration
         if self.config is not None:
-            self.manager.configure(self.config)
+            self.manager.configure(cast(DatabaseConfiguration, self.config))
 
         # Start the manager
         try:
             await self.manager.start()
             self.status.state = ServiceState.RUNNING
+            db_config = cast(DatabaseConfiguration, self.config) if self.config else None
             self.logger.info(
-                f"Database service started with engine {self.config.engine if self.config else 'unknown'}"
+                f"Database service started with engine {db_config.engine if db_config else 'unknown'}"
             )
         except Exception as e:
             error_msg = f"Failed to start database service: {e}"

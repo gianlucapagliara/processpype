@@ -97,7 +97,7 @@ class AgentManager(ServiceManager):
         Returns:
             List of all managed agent instances
         """
-        return Agency.get_active_agents()
+        return Agency.get_active_agents()  # type: ignore[no-any-return]
 
     def get_agent(self, agent_id: str) -> Agent | None:
         """Get a specific agent by ID.

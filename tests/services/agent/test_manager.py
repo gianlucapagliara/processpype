@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Mock the agentspype imports
-mock_agent = MagicMock()
+_mock_agent_module = MagicMock()
 mock_agency = MagicMock()
 mock_agency_module = MagicMock()
 mock_agency_module.Agency = mock_agency
@@ -97,7 +97,7 @@ async def test_add_agents(agent_manager: AgentManager, mock_agent: MockAgent) ->
 
         # Check that add_agent was called for each agent
         assert mock_add.call_count == 3
-        for i, agent in enumerate(agents):
+        for _i, agent in enumerate(agents):
             mock_add.assert_any_call(agent)
 
 

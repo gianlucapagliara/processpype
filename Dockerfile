@@ -10,21 +10,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy only the files needed for installation
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-# Configure Poetry and install dependencies
-RUN /root/.local/bin/poetry config virtualenvs.create false \
-    && /root/.local/bin/poetry install --no-interaction --no-ansi --no-root --only main
+# Install production dependencies
+RUN uv sync --no-dev --no-install-project
 
 # Copy the rest of the application
 COPY . .
 
-# Install the application
-RUN /root/.local/bin/poetry install --no-interaction --no-ansi -E all_py313
+# Install the application with extras
+RUN uv sync --no-dev --extra all_py313
 
 # Runtime stage
 FROM python:3.13-slim as runtime

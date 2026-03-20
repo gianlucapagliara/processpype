@@ -38,7 +38,7 @@ class S3StorageBackend(StorageBackend):
         self._endpoint = endpoint
         self._access_key = access_key
         self._secret_key = secret_key
-        self._client = None
+        self._client: Any = None
 
     @property
     def bucket(self) -> str:
@@ -162,7 +162,7 @@ class S3StorageBackend(StorageBackend):
         """
         try:
             self._check_client()
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 "Bucket": self._bucket,
                 "Key": path,
                 "Body": data,

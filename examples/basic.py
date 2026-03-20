@@ -3,7 +3,10 @@
 import asyncio
 
 from processpype.core import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.core.configuration.models import (
+    ApplicationConfiguration,
+    LogfireConfiguration,
+)
 from processpype.services.monitoring.system import SystemMonitoringService
 
 
@@ -12,6 +15,13 @@ async def main() -> None:
     app = Application(
         ApplicationConfiguration(
             title="Example App",
+            logfire=LogfireConfiguration(
+                key="pylf_v1_eu_D7mVHxtkc1j2G8zKkDlQ6PJh6kpP9BFJ66WrjhjkJXZy",
+                enabled=True,
+                enable_logs=True,
+                environment="development",
+                app_name="ProcessPype",
+            ),
         )
     )
 
