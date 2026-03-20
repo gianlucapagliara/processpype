@@ -76,6 +76,15 @@ wheels = [
 ]
 
 [[package]]
+name = "async-timeout"
+version = "5.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
+]
+
+[[package]]
 name = "asyncpg"
 version = "0.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -221,15 +230,15 @@ wheels = [
 
 [[package]]
 name = "chronopype"
-version = "0.3.1"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eventspype" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/e7/bf357a921b2b9c96c7ff5568d9108e88c99d2b99cc6eb31cb730ff81baa8/chronopype-0.3.1.tar.gz", hash = "sha256:c9abd9143533d562964252f8ca31aa937d74f02250360a1e21e9d333f4edb7d8", size = 51700, upload-time = "2026-03-20T15:04:33.711Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/f6/28509d5657da84e30690238c85dfd1770a86194698033bfb8210a99a2dcb/chronopype-0.6.0.tar.gz", hash = "sha256:7436ba30f283f9f6394b83ac33ec0e69a3ed7e8b8971b1a7d9f32151e407c976", size = 86782, upload-time = "2026-03-20T18:02:39.046Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/67/67e3ec258bce7d476d6176bad644eb144ad0d121e2b1f42240a38768380b/chronopype-0.3.1-py3-none-any.whl", hash = "sha256:fe097b74a7f4320be82929b04d7855953daa3fe2538087912290a7d1c2fd0292", size = 18795, upload-time = "2026-03-20T15:04:32.779Z" },
+    { url = "https://files.pythonhosted.org/packages/60/82/f20483085d8649d6e5a3f6e48aafa3b713344baab4bd64c0e413e11584ae/chronopype-0.6.0-py3-none-any.whl", hash = "sha256:bb00ed53d69a82f7406910853caa573a44d9210ee528296f945ef759d7d31f1b", size = 20226, upload-time = "2026-03-20T18:02:40.209Z" },
 ]
 
 [[package]]
@@ -345,11 +354,15 @@ wheels = [
 
 [[package]]
 name = "eventspype"
-version = "1.0.3"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/77/91/11aca87194fc9676b799e3af3f09383ea06a9ee4de6e904c75badc0ea5cd/eventspype-1.0.3.tar.gz", hash = "sha256:65a48d311f4f2681c8d02d39825d910dfb607c2f17dd2a13c38eca4471ffad1f", size = 8467, upload-time = "2025-02-15T11:17:17.962Z" }
+dependencies = [
+    { name = "async-timeout" },
+    { name = "graphviz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e3/10/9f5d26876dd1dbbbb519c0ab912be0ee0ceb0ef55a37d17b0fd44c0b79f7/eventspype-1.1.0.tar.gz", hash = "sha256:5c3a05892d68e06108962fd21d9d5bfc6f715ae4c8e9ea4b22ef7c747e7429ef", size = 80852, upload-time = "2026-03-20T19:18:08.249Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/84/e97d8c878f4cd8b2ea929bc92523e2f0902fd980a541e8419166d1d24f1c/eventspype-1.0.3-py3-none-any.whl", hash = "sha256:722a4b37713fcfbbf7dcc32972673c3d8a427c74cde658b9a09d1d4898ad7f21", size = 11970, upload-time = "2025-02-15T11:17:16.247Z" },
+    { url = "https://files.pythonhosted.org/packages/da/9f/8d018f57a55e7cd6c055aa22c68d1498cc9f5b5d393ca7bc8dec3bf41cb1/eventspype-1.1.0-py3-none-any.whl", hash = "sha256:4b01897d5fb56c90b003f6876c2b79ee9674c2b0a6e9f958bda75ecc2c1fa2ff", size = 22074, upload-time = "2026-03-20T19:18:09.219Z" },
 ]
 
 [[package]]
@@ -408,6 +421,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/99/96/a0205167fa0154f4a542fd6925bdc63d039d88dab3588b875078107e6f06/googleapis_common_protos-1.73.0.tar.gz", hash = "sha256:778d07cd4fbeff84c6f7c72102f0daf98fa2bfd3fa8bea426edc545588da0b5a", size = 147323, upload-time = "2026-03-06T21:53:09.727Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/69/28/23eea8acd65972bbfe295ce3666b28ac510dfcb115fac089d3edb0feb00a/googleapis_common_protos-1.73.0-py3-none-any.whl", hash = "sha256:dfdaaa2e860f242046be561e6d6cb5c5f1541ae02cfbcb034371aadb2942b4e8", size = 297578, upload-time = "2026-03-06T21:52:33.933Z" },
+]
+
+[[package]]
+name = "graphviz"
+version = "0.21"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/b3/3ac91e9be6b761a4b30d66ff165e54439dcd48b83f4e20d644867215f6ca/graphviz-0.21.tar.gz", hash = "sha256:20743e7183be82aaaa8ad6c93f8893c923bd6658a04c32ee115edb3c8a835f78", size = 200434, upload-time = "2025-06-15T09:35:05.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/4c/e0ce1ef95d4000ebc1c11801f9b944fa5910ecc15b5e351865763d8657f8/graphviz-0.21-py3-none-any.whl", hash = "sha256:54f33de9f4f911d7e84e4191749cac8cc5653f815b06738c54db9a15ab8b1e42", size = 47300, upload-time = "2025-06-15T09:35:04.433Z" },
 ]
 
 [[package]]
@@ -1075,11 +1097,11 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'all-py313'", specifier = ">=1.37.0" },
     { name = "boto3", marker = "extra == 'monitoring'", specifier = ">=1.37.0" },
     { name = "boto3", marker = "extra == 'storage'", specifier = ">=1.37.0" },
-    { name = "chronopype", specifier = ">=0.2.7" },
+    { name = "chronopype", specifier = ">=0.6.0" },
     { name = "cronitor", marker = "extra == 'all'", specifier = "==4.7.1" },
     { name = "cronitor", marker = "extra == 'all-py313'", specifier = "==4.7.1" },
     { name = "cronitor", marker = "extra == 'monitoring'", specifier = "==4.7.1" },
-    { name = "eventspype", specifier = ">=1.0.3" },
+    { name = "eventspype", specifier = ">=1.1.0" },
     { name = "fastapi", specifier = ">=0.115.6" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "logfire", extras = ["fastapi"], specifier = ">=4.16" },

@@ -15,8 +15,8 @@ dependencies = [
     "pytz>=2024.2",
     "logfire[fastapi]>=4.16",
     "pyyaml>=6.0.2",
-    "eventspype>=1.0.3",
-    "chronopype>=0.2.7",
+    "eventspype>=1.1.0",
+    "chronopype>=0.6.0",
 ]
 
 [project.optional-dependencies]
