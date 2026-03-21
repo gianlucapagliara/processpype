@@ -1,6 +1,6 @@
 site_name: ProcessPype
 site_url: https://gianlucapagliara.github.io/processpype/
-site_description: A modular application framework with built-in FastAPI integration and pluggable services
+site_description: A modular application framework with FastAPI integration for building service-oriented Python applications
 site_author: Gianluca Pagliara
 repo_url: https://github.com/gianlucapagliara/processpype
 repo_name: gianlucapagliara/processpype
@@ -36,13 +36,6 @@ nav:
       - Configuration: guide/configuration.md
       - Routing: guide/routing.md
       - Docker: guide/docker.md
-  - Services:
-      - Clock: services/clock.md
-      - Database: services/database.md
-      - Monitoring: services/monitoring.md
-      - Notification: services/notification.md
-      - Storage: services/storage.md
-      - Agent: services/agent.md
   - API Reference:
       - Application: api/application.md
       - BaseService: api/service.md

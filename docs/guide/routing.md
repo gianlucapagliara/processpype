@@ -12,10 +12,10 @@ Returns the overall application status:
 
 ```json
 {
-  "version": "1.1.6",
+  "version": "1.2.1",
   "state": "running",
   "services": {
-    "clock": {
+    "counter": {
       "state": "running",
       "error": null,
       "metadata": {},
@@ -33,7 +33,7 @@ Returns a list of all registered services:
 {
   "services": [
     {
-      "name": "clock",
+      "name": "counter",
       "state": "running",
       "is_configured": true,
       "error": null
@@ -49,7 +49,7 @@ Register a service by its class name. The service must be in the global registry
 ```bash
 curl -X POST http://localhost:8000/services/register \
   -H "Content-Type: application/json" \
-  -d '{"service_name": "clock", "instance_name": "primary-clock"}'
+  -d '{"service_name": "counter", "instance_name": "primary-counter"}'
 ```
 
 Response:
@@ -57,8 +57,8 @@ Response:
 ```json
 {
   "status": "registered",
-  "service": "primary-clock",
-  "type": "ClockService"
+  "service": "primary-counter",
+  "type": "CounterService"
 }
 ```
 
@@ -67,7 +67,7 @@ Response:
 Deregister and stop a service:
 
 ```bash
-curl -X DELETE http://localhost:8000/services/primary-clock
+curl -X DELETE http://localhost:8000/services/primary-counter
 ```
 
 Response:
@@ -75,7 +75,7 @@ Response:
 ```json
 {
   "status": "deregistered",
-  "service": "primary-clock"
+  "service": "primary-counter"
 }
 ```
 
@@ -88,7 +88,7 @@ Response:
 Returns the service status:
 
 ```bash
-curl http://localhost:8000/services/clock
+curl http://localhost:8000/services/counter
 ```
 
 ```json
@@ -105,11 +105,11 @@ curl http://localhost:8000/services/clock
 Start the service:
 
 ```bash
-curl -X POST http://localhost:8000/services/clock/start
+curl -X POST http://localhost:8000/services/counter/start
 ```
 
 ```json
-{"status": "started", "service": "clock"}
+{"status": "started", "service": "counter"}
 ```
 
 ### POST /services/{name}/stop
@@ -117,11 +117,11 @@ curl -X POST http://localhost:8000/services/clock/start
 Stop the service:
 
 ```bash
-curl -X POST http://localhost:8000/services/clock/stop
+curl -X POST http://localhost:8000/services/counter/stop
 ```
 
 ```json
-{"status": "stopped", "service": "clock"}
+{"status": "stopped", "service": "counter"}
 ```
 
 ### POST /services/{name}/configure
@@ -129,13 +129,13 @@ curl -X POST http://localhost:8000/services/clock/stop
 Configure the service with a JSON body:
 
 ```bash
-curl -X POST http://localhost:8000/services/clock/configure \
+curl -X POST http://localhost:8000/services/counter/configure \
   -H "Content-Type: application/json" \
-  -d '{"tick_size": 1.0, "enabled": true}'
+  -d '{"initial_value": 10, "step": 5}'
 ```
 
 ```json
-{"status": "configured", "service": "clock"}
+{"status": "configured", "service": "counter"}
 ```
 
 ### POST /services/{name}/configure_and_start
@@ -143,26 +143,25 @@ curl -X POST http://localhost:8000/services/clock/configure \
 Configure and start in a single call:
 
 ```bash
-curl -X POST http://localhost:8000/services/clock/configure_and_start \
+curl -X POST http://localhost:8000/services/ticker/configure_and_start \
   -H "Content-Type: application/json" \
-  -d '{"tick_size": 1.0}'
+  -d '{"interval_seconds": 2.0}'
 ```
 
 ```json
-{"status": "configured and started", "service": "clock"}
+{"status": "configured and started", "service": "ticker"}
 ```
 
 ## Custom Service Routes
 
-Add custom endpoints to a service by overriding `create_router()`:
+Add custom endpoints to a service by overriding `create_router()`. The `CounterService` example demonstrates this pattern with its `CounterRouter`:
 
 ```python
-from fastapi import APIRouter
 from processpype.core.service.router import ServiceRouter
 from processpype.core.service.service import Service
 
 
-class MetricsService(Service):
+class MyService(Service):
     def create_router(self) -> ServiceRouter:
         router = super().create_router()  # get default routes
 
@@ -173,20 +172,22 @@ class MetricsService(Service):
         return router
 ```
 
-Or create an entirely custom router subclass:
+Or create an entirely custom router subclass (as `CounterRouter` does):
 
 ```python
-class MetricsRouter(ServiceRouter):
-    def __init__(self, name: str, get_status, get_metrics, **kwargs):
-        self._get_metrics = get_metrics
+class MyRouter(ServiceRouter):
+    def __init__(self, name: str, get_status, get_data, **kwargs):
+        self._get_data = get_data
         super().__init__(name=name, get_status=get_status, **kwargs)
-        self._setup_metrics_routes()
+        self._setup_custom_routes()
 
-    def _setup_metrics_routes(self) -> None:
-        @self.get("/metrics")
-        async def get_metrics() -> dict:
-            return self._get_metrics()
+    def _setup_custom_routes(self) -> None:
+        @self.get("/data")
+        async def get_data() -> dict:
+            return self._get_data()
 ```
+
+See `processpype/examples/counter.py` for a complete working example of a custom router.
 
 ## API Prefix
 
@@ -199,7 +200,7 @@ config = ApplicationConfiguration(api_prefix="/api/v1")
 With this prefix:
 - Application status: `GET /api/v1/`
 - Service list: `GET /api/v1/services`
-- Clock status: `GET /api/v1/services/clock`
+- Counter status: `GET /api/v1/services/counter`
 
 ## OpenAPI Documentation
 

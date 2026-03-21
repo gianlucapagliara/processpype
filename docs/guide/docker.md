@@ -18,7 +18,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --no-install-project
 COPY . .
-RUN uv sync --no-dev --extra all_py313
+RUN uv sync --no-dev
 
 # Runtime stage
 FROM python:3.13-slim as runtime
@@ -64,16 +64,15 @@ docker build --target runtime -t processpype:latest .
 ## Running with Docker
 
 ```bash
-# Run with monitoring service enabled
+# Run the application
 docker run -p 8000:8000 \
   -e APP_TITLE="My App" \
   -e APP_ENV=production \
-  -e ENABLED_SERVICES=monitoring \
   processpype:latest
 
-# Run with multiple services
+# Run with Logfire enabled
 docker run -p 8000:8000 \
-  -e ENABLED_SERVICES=monitoring,clock \
+  -e APP_TITLE="My App" \
   -e LOGFIRE_KEY=your-token \
   processpype:latest
 ```
@@ -98,7 +97,6 @@ services:
       - APP_TITLE=ProcessPype Dev
       - APP_ENV=development
       - APP_DEBUG=true
-      - ENABLED_SERVICES=monitoring
     volumes:
       - ./processpype:/app/processpype
 ```

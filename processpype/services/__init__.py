@@ -1,6 +1,6 @@
 """Service package for ProcessPype.
 
-This package contains all built-in services for the ProcessPype application.
+This package provides the service registry mechanism for ProcessPype.
 Services can be registered with the application and provide specific functionality.
 
 With the new service management approach, multiple instances of the same service
@@ -55,58 +55,9 @@ def get_service_class(name: str) -> type[Service] | None:
     return AVAILABLE_SERVICES.get(name)
 
 
-# Import all services to ensure they get registered
-try:
-    from processpype.services.agent import AgentService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.database import DatabaseService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.monitoring.system import SystemMonitoringService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.notification import NotificationService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.storage import StorageService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.clock import ClockService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.monitoring.cronitor import CronitorService  # noqa
-except ImportError:
-    pass
-
-try:
-    from processpype.services.monitoring.cloudwatch import CloudWatchService  # noqa
-except ImportError:
-    pass
-
-# Export all service classes
 __all__ = [
+    "AVAILABLE_SERVICES",
     "register_service_class",
     "get_available_services",
     "get_service_class",
-    "AgentService",
-    "DatabaseService",
-    "SystemMonitoringService",
-    "NotificationService",
-    "StorageService",
-    "ClockService",
-    "CronitorService",
-    "CloudWatchService",
 ]

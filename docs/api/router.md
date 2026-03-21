@@ -45,14 +45,14 @@ Accepts `ServiceRegistrationRequest`:
 
 ```python
 class ServiceRegistrationRequest(BaseModel):
-    service_name: str       # registry key (e.g. "clock")
+    service_name: str       # registry key (e.g. "counter")
     instance_name: str | None = None  # optional custom name
 ```
 
 Looks up `service_name` in the global service registry, creates and registers an instance, and returns:
 
 ```json
-{"status": "registered", "service": "clock", "type": "ClockService"}
+{"status": "registered", "service": "counter", "type": "CounterService"}
 ```
 
 **HTTP errors:**
@@ -66,7 +66,7 @@ Looks up `service_name` in the global service registry, creates and registers an
 Stops and removes the named service. Returns:
 
 ```json
-{"status": "deregistered", "service": "clock"}
+{"status": "deregistered", "service": "counter"}
 ```
 
 **HTTP errors:**

@@ -83,7 +83,7 @@ app_status = ApplicationStatus(
     version="1.1.6",
     state=ServiceState.RUNNING,
     services={
-        "clock": ServiceStatus(state=ServiceState.RUNNING, is_configured=True),
+        "counter": ServiceStatus(state=ServiceState.RUNNING, is_configured=True),
     },
 )
 data = app_status.model_dump(mode="json")
@@ -96,7 +96,7 @@ Response JSON from `GET /`:
   "version": "1.1.6",
   "state": "running",
   "services": {
-    "clock": {
+    "counter": {
       "state": "running",
       "error": null,
       "metadata": {},

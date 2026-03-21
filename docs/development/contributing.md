@@ -82,17 +82,13 @@ processpype/
 │   │       ├── service.py         # Service abstract base class
 │   │       ├── manager.py         # ServiceManager abstract base class
 │   │       └── router.py          # ServiceRouter
-│   └── services/
-│       ├── __init__.py            # Service registry helpers
-│       ├── agent/                 # Agent service (requires agentspype)
-│       ├── clock/                 # Clock service (wraps chronopype)
-│       ├── database/              # Database service (SQLAlchemy)
-│       ├── monitoring/
-│       │   ├── system/            # System resource monitoring
-│       │   ├── cloudwatch/        # AWS CloudWatch integration
-│       │   └── cronitor/          # Cronitor integration
-│       ├── notification/          # Notification service (console, email)
-│       └── storage/               # Storage service (local, S3)
+│   ├── services/
+│   │   └── __init__.py            # Service registry (register_service_class, get_service_class)
+│   └── examples/
+│       ├── __init__.py
+│       ├── hello.py               # HelloService — minimal, no config
+│       ├── counter.py             # CounterService — config + custom router
+│       └── ticker.py              # TickerService — background async loop
 ├── tests/
 │   ├── conftest.py
 │   └── ...
@@ -102,31 +98,38 @@ processpype/
 └── pyproject.toml
 ```
 
-## Adding a New Service
+## Creating a New Service
 
-1. Create a directory under `processpype/services/your_service/`
-2. Implement `config.py` (extend `ServiceConfiguration`)
-3. Implement `manager.py` (extend `ServiceManager`, implement `start()` and `stop()`)
-4. Implement `service.py` (extend `Service`, implement `create_manager()`)
-5. Optionally implement `router.py` for custom endpoints
-6. Decorate with `@register_service_class` for dynamic registration
-7. Add documentation under `docs/services/`
-8. Add tests under `tests/services/your_service/`
+Use the example services in `processpype/examples/` as templates:
+
+- **HelloService** (`hello.py`) --- Minimal service, no configuration needed. Start here for the simplest case.
+- **CounterService** (`counter.py`) --- Service with custom `ServiceConfiguration`, validation, and a custom `ServiceRouter` with domain-specific endpoints.
+- **TickerService** (`ticker.py`) --- Service with a background async loop and graceful shutdown.
+
+To create a new service:
+
+1. Create a new module (e.g., `myapp/services/my_service.py`)
+2. Define a `ServiceConfiguration` subclass if your service needs configuration
+3. Define a `ServiceManager` subclass with `start()` and `stop()` methods
+4. Define a `Service` subclass with `create_manager()` and `configuration_class`
+5. Optionally subclass `ServiceRouter` for custom HTTP endpoints
+6. Optionally decorate with `@register_service_class` for dynamic registration via the REST API
+7. Add tests
 
 Example skeleton:
 
 ```python
-# processpype/services/my_service/config.py
 from pydantic import Field
 from processpype.core.configuration.models import ServiceConfiguration
+from processpype.core.service.manager import ServiceManager
+from processpype.core.service.service import Service
+from processpype.services import register_service_class
+
 
 class MyServiceConfiguration(ServiceConfiguration):
     host: str = Field(default="localhost")
     port: int = Field(default=9090)
 
-
-# processpype/services/my_service/manager.py
-from processpype.core.service.manager import ServiceManager
 
 class MyServiceManager(ServiceManager):
     async def start(self) -> None:
@@ -135,12 +138,6 @@ class MyServiceManager(ServiceManager):
     async def stop(self) -> None:
         self.logger.info("MyService stopped")
 
-
-# processpype/services/my_service/service.py
-from processpype.services import register_service_class
-from processpype.core.service.service import Service
-from .config import MyServiceConfiguration
-from .manager import MyServiceManager
 
 @register_service_class
 class MyService(Service):

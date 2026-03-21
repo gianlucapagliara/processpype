@@ -111,8 +111,8 @@ After registration, the service's router is mounted on the FastAPI instance auto
 Services can also be registered by their string name if they are in the global service registry (decorated with `@register_service_class`):
 
 ```python
-service = app.register_service_by_name("clock")
-service = app.register_service_by_name("clock", instance_name="primary-clock")
+service = app.register_service_by_name("counter")
+service = app.register_service_by_name("counter", instance_name="primary-counter")
 ```
 
 This is used by the `POST /services/register` HTTP endpoint.
@@ -130,8 +130,8 @@ await app.stop_service("myservice")
 service = app.get_service("myservice")
 
 # Get all services of a type
-from processpype.services.clock.service import ClockService
-clocks = app.get_services_by_type(ClockService)
+from processpype.examples import CounterService
+counters = app.get_services_by_type(CounterService)
 ```
 
 ### Deregistering services

@@ -185,4 +185,4 @@ class EnvProvider(ConfigurationProvider):
 
 Reads environment variables with the given prefix. Double underscores (`__`) are split into nested dictionary keys. `save()` is a no-op.
 
-Example: `PROCESSPYPE_SERVICES__CLOCK__ENABLED=true` sets `config["services"]["clock"]["enabled"] = "true"`.
+Example: `PROCESSPYPE_SERVICES__COUNTER__ENABLED=true` sets `config["services"]["counter"]["enabled"] = "true"`.

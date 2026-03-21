@@ -6,14 +6,13 @@
 [![PyPI](https://img.shields.io/pypi/v/processpype)](https://pypi.org/project/processpype/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modular application framework for building service-oriented Python applications with built-in FastAPI integration, structured logging, and pluggable services.
+A modular application framework for building service-oriented Python applications with FastAPI integration, structured logging, and a clear service lifecycle.
 
 ## Features
 
 - **Service Framework** --- Define services with a clear lifecycle and automatic REST API endpoints
 - **FastAPI Integration** --- Each service automatically exposes HTTP endpoints for status, start, stop, and configuration
 - **Configuration Management** --- YAML file, environment variable, and programmatic configuration with Pydantic models
-- **Pluggable Services** --- Built-in clock, database, storage, notification, and monitoring services
 - **REST API** --- Application-level endpoints for service discovery, registration, and lifecycle management
 - **Structured Logging** --- Integrated Logfire support for production-grade observability
 - **Type Safe** --- Fully typed with MyPy strict mode compliance
@@ -24,34 +23,15 @@ A modular application framework for building service-oriented Python application
 ```python
 import asyncio
 from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration, ServiceConfiguration
-from processpype.core.service.service import Service
-from processpype.core.service.manager import ServiceManager
-
-
-class WorkerManager(ServiceManager):
-    async def start(self) -> None:
-        self.logger.info("Worker started")
-
-    async def stop(self) -> None:
-        self.logger.info("Worker stopped")
-
-
-class WorkerService(Service):
-    configuration_class = ServiceConfiguration
-
-    def create_manager(self) -> WorkerManager:
-        return WorkerManager(self.logger)
-
-    def requires_configuration(self) -> bool:
-        return False
+from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.examples import HelloService
 
 
 async def main() -> None:
     config = ApplicationConfiguration(title="My App", port=8080)
     async with Application(config) as app:
         await app.initialize()
-        service = app.register_service(WorkerService)
+        service = app.register_service(HelloService)
         await app.start_service(service.name)
         print(f"Service state: {service.status.state}")
 
@@ -74,14 +54,9 @@ Application
 └── Service (per service)
     ├── ServiceManager    ── business logic (start/stop)
     └── ServiceRouter     ── HTTP endpoints per service
-
-Built-in Services
-├── ClockService          ── chronopype clock management
-├── DatabaseService       ── SQLite / PostgreSQL access
-├── StorageService        ── local filesystem / S3
-├── NotificationService   ── console / email channels
-└── SystemMonitoringService ── CPU, memory, disk metrics
 ```
+
+ProcessPype is a pure framework --- it provides the infrastructure for building services but does not ship any built-in service implementations. See the [example services](getting-started/quickstart.md) in `processpype.examples` for ready-made templates.
 
 ## Next Steps
 

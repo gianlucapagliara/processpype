@@ -18,17 +18,6 @@ dependencies = [
     "eventspype>=1.1.0",
 ]
 
-[project.optional-dependencies]
-clock = ["chronopype>=0.7.3"]
-agents = ["agentspype>=0.2.0"]
-storage = ["boto3>=1.37.0"]
-database = ["sqlalchemy>=2.0.30", "aiosqlite>=0.20.0", "asyncpg>=0.29.0"]
-database_py313 = ["sqlalchemy>=2.0.30", "aiosqlite>=0.20.0"]
-notifications = ["telethon>=1.34.0", "aiosmtplib>=3.0.1"]
-monitoring = ["cronitor==4.7.1", "boto3>=1.37.0"]
-all = ["chronopype>=0.7.3", "agentspype>=0.2.0", "boto3>=1.37.0", "sqlalchemy>=2.0.30", "aiosqlite>=0.20.0", "asyncpg>=0.29.0", "telethon>=1.34.0", "aiosmtplib>=3.0.1", "cronitor==4.7.1"]
-all_py313 = ["chronopype>=0.7.3", "agentspype>=0.2.0", "boto3>=1.37.0", "sqlalchemy>=2.0.30", "aiosqlite>=0.20.0", "telethon>=1.34.0", "aiosmtplib>=3.0.1", "cronitor==4.7.1"]
-
 [project.urls]
 Repository = "https://github.com/gianlucapagliara/processpype"
 Documentation = "https://gianlucapagliara.github.io/processpype/"

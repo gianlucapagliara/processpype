@@ -1,6 +1,6 @@
 # Quick Start
 
-This guide walks through the basics of ProcessPype: creating an application, defining a service, and running it.
+This guide walks through the basics of ProcessPype: creating an application, registering a service, and running it. ProcessPype ships with three example services that demonstrate common patterns.
 
 ## Creating an Application
 
@@ -28,7 +28,65 @@ You can also load configuration from a YAML file:
 app = await Application.create("config.yaml")
 ```
 
-## Defining a Service
+## Using the Example Services
+
+ProcessPype includes three example services in `processpype.examples` that serve as templates for building your own.
+
+### HelloService --- Minimal Service
+
+The simplest possible service. No configuration needed.
+
+```python
+import asyncio
+from processpype.core.application import Application
+from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.examples import HelloService
+
+
+async def main() -> None:
+    config = ApplicationConfiguration(title="My App", port=8080)
+    app = Application(config)
+    await app.initialize()
+
+    service = app.register_service(HelloService)
+    await app.start_service(service.name)
+    print(f"State: {service.status.state}")  # ServiceState.RUNNING
+
+
+asyncio.run(main())
+```
+
+### CounterService --- Configuration and Custom Routes
+
+Demonstrates custom `ServiceConfiguration` with validation, and a custom `ServiceRouter` with domain-specific endpoints.
+
+```python
+from processpype.examples import CounterService
+
+service = app.register_service(CounterService)
+service.configure({"initial_value": 10, "step": 5})
+await app.start_service(service.name)
+
+# The counter exposes custom HTTP endpoints:
+# GET  /services/counter/value
+# POST /services/counter/increment
+# POST /services/counter/reset
+```
+
+### TickerService --- Background Async Loop
+
+Demonstrates a service that runs a periodic background task with graceful shutdown.
+
+```python
+from processpype.examples import TickerService
+
+service = app.register_service(TickerService)
+service.configure({"interval_seconds": 2.0})
+await app.start_service(service.name)
+# The ticker logs "Tick #N" every 2 seconds
+```
+
+## Building Your Own Service
 
 A service requires two classes: a manager (business logic) and the service itself.
 
@@ -38,114 +96,51 @@ from processpype.core.service.manager import ServiceManager
 from processpype.core.configuration.models import ServiceConfiguration
 
 
-class DataCollectorManager(ServiceManager):
+class MyManager(ServiceManager):
     async def start(self) -> None:
-        self.logger.info("Data collector started, beginning collection...")
-        # Initialize connections, background tasks, etc.
+        self.logger.info("Service started")
 
     async def stop(self) -> None:
-        self.logger.info("Data collector stopping...")
-        # Clean up resources, cancel background tasks, etc.
+        self.logger.info("Service stopped")
 
 
-class DataCollectorService(Service):
+class MyService(Service):
     configuration_class = ServiceConfiguration
 
-    def create_manager(self) -> DataCollectorManager:
-        return DataCollectorManager(self.logger)
+    def create_manager(self) -> MyManager:
+        return MyManager(self.logger)
 
     def requires_configuration(self) -> bool:
-        return False  # can start without explicit configuration
+        return False
 ```
 
-## Adding Custom Configuration
-
-Extend `ServiceConfiguration` to add service-specific settings:
-
-```python
-from pydantic import Field
-from processpype.core.configuration.models import ServiceConfiguration
-
-
-class DataCollectorConfiguration(ServiceConfiguration):
-    interval_seconds: float = Field(default=5.0, description="Collection interval")
-    endpoint: str = Field(default="http://localhost:9090", description="Data source URL")
-
-
-class DataCollectorService(Service):
-    configuration_class = DataCollectorConfiguration
-
-    def create_manager(self) -> DataCollectorManager:
-        return DataCollectorManager(self.logger)
-```
-
-## Registering Services
-
-Initialize the application before registering services:
-
-```python
-async def main() -> None:
-    config = ApplicationConfiguration(title="My App", port=8080)
-    app = Application(config)
-    await app.initialize()
-
-    # Register the service — returns a Service instance
-    service = app.register_service(DataCollectorService)
-    print(f"Registered: {service.name}")  # "datacollector"
-```
-
-You can also register a service with a custom name:
-
-```python
-service = app.register_service(DataCollectorService, name="primary-collector")
-```
-
-## Starting Services
-
-```python
-async def main() -> None:
-    config = ApplicationConfiguration(title="My App", port=8080)
-    app = Application(config)
-    await app.initialize()
-
-    service = app.register_service(DataCollectorService)
-    await app.start_service(service.name)
-
-    print(f"State: {service.status.state}")  # ServiceState.RUNNING
-```
+Use the example services as templates: `HelloService` for the simplest case, `CounterService` for configuration and custom routes, and `TickerService` for background tasks.
 
 ## Configuring Services at Runtime
 
 ```python
-await app.initialize()
-service = app.register_service(DataCollectorService)
+service = app.register_service(TickerService)
 
 # Configure before starting
-service.configure({
-    "interval_seconds": 10.0,
-    "endpoint": "http://prod.example.com:9090",
-})
-
+service.configure({"interval_seconds": 5.0})
 await app.start_service(service.name)
 ```
 
 Or combine configure and start:
 
 ```python
-await service.configure_and_start({
-    "interval_seconds": 10.0,
-    "endpoint": "http://prod.example.com:9090",
-})
+await service.configure_and_start({"interval_seconds": 5.0})
 ```
 
 ## Running the Application
 
-Use `app.start()` to launch the Uvicorn server. This is the typical production entry point:
+Use `app.start()` to launch the Uvicorn server:
 
 ```python
 import asyncio
 from processpype.core.application import Application
 from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.examples import CounterService, TickerService
 
 
 async def main() -> None:
@@ -156,7 +151,8 @@ async def main() -> None:
     )
     app = Application(config)
     await app.initialize()
-    app.register_service(DataCollectorService)
+    app.register_service(CounterService)
+    app.register_service(TickerService)
     await app.start()  # blocks until server stops
 
 
@@ -186,11 +182,15 @@ debug: false
 environment: production
 
 services:
-  datacollector:
+  counter:
     enabled: true
     autostart: false
-    interval_seconds: 10.0
-    endpoint: http://prod.example.com:9090
+    initial_value: 0
+    step: 1
+  ticker:
+    enabled: true
+    autostart: true
+    interval_seconds: 2.0
 ```
 
 Load it with:

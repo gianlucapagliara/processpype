@@ -49,7 +49,8 @@ config = ApplicationConfiguration(
     api_prefix="/api/v1",
     closing_timeout_seconds=30,
     services={
-        "myservice": {"enabled": True, "host": "localhost", "port": 9090},
+        "counter": {"enabled": True, "initial_value": 0, "step": 1},
+        "ticker": {"enabled": True, "interval_seconds": 2.0},
     },
 )
 ```
@@ -69,21 +70,16 @@ api_prefix: ""
 closing_timeout_seconds: 60
 
 services:
-  clock:
+  counter:
     enabled: true
     autostart: false
+    initial_value: 0
+    step: 1
 
-  storage:
+  ticker:
     enabled: true
     autostart: true
-    backend: local
-    base_path: /data/storage
-
-  database:
-    enabled: true
-    autostart: true
-    engine: sqlite
-    url: sqlite+aiosqlite:///./app.db
+    interval_seconds: 2.0
 ```
 
 Load the configuration:
@@ -115,8 +111,8 @@ Reads environment variables with the `PROCESSPYPE_` prefix. Double underscores (
 # Sets config["host"]
 export PROCESSPYPE_HOST=0.0.0.0
 
-# Sets config["services"]["clock"]["enabled"]
-export PROCESSPYPE_SERVICES__CLOCK__ENABLED=true
+# Sets config["services"]["counter"]["enabled"]
+export PROCESSPYPE_SERVICES__COUNTER__ENABLED=true
 ```
 
 ```python

@@ -1,44 +1,38 @@
-"""Example usage of ProcessPype framework."""
+"""Example usage of ProcessPype framework.
+
+Demonstrates registering and running example services.
+"""
 
 import asyncio
 
 from processpype.core import Application
-from processpype.core.configuration.models import (
-    ApplicationConfiguration,
-    LogfireConfiguration,
-)
-from processpype.services.monitoring.system import SystemMonitoringService
+from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.examples import CounterService, HelloService, TickerService
 
 
 async def main() -> None:
-    # Create application with Logfire integration
     app = Application(
         ApplicationConfiguration(
             title="Example App",
-            logfire=LogfireConfiguration(
-                key="pylf_v1_eu_D7mVHxtkc1j2G8zKkDlQ6PJh6kpP9BFJ66WrjhjkJXZy",
-                enabled=True,
-                enable_logs=True,
-                environment="development",
-                app_name="ProcessPype",
-            ),
+            version="1.0.0",
         )
     )
 
-    # Initialize application
     await app.initialize()
 
-    # Register monitoring service
-    monitoring = app.register_service(SystemMonitoringService)
+    # Register example services
+    app.register_service(HelloService)
+    app.register_service(CounterService)
+    app.register_service(TickerService)
 
-    # Start monitoring service
-    await app.start_service(monitoring.name)
+    # Start services
+    await app.start_service("hello")
+    await app.start_service("counter")
+    await app.start_service("ticker")
 
     try:
-        # Start application (this will block until interrupted)
         await app.start()
     except KeyboardInterrupt:
-        # Stop application and services
         await app.stop()
 
 
