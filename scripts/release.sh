@@ -61,7 +61,7 @@ fi
 sed -i '' "s/^version = \"${CURRENT_VERSION}\"/version = \"${NEW_VERSION}\"/" "$PYPROJECT"
 
 # Update lockfile
-uv sync --all-extras --quiet
+uv sync --quiet
 
 # Run checks
 echo "Running checks..."
