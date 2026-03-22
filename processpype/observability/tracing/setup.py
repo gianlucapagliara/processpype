@@ -129,19 +129,19 @@ def _setup_otel_sdk(config: TracingConfig) -> None:
 def _build_exporter(config: TracingConfig) -> Any | None:
     if config.backend == "otlp_grpc":
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-            OTLPSpanExporter,
+            OTLPSpanExporter as GrpcExporter,
         )
 
-        return OTLPSpanExporter(
+        return GrpcExporter(
             endpoint=config.endpoint or "http://localhost:4317",
         )
 
     if config.backend == "otlp_http":
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-            OTLPSpanExporter,
+            OTLPSpanExporter as HttpExporter,
         )
 
-        return OTLPSpanExporter(
+        return HttpExporter(
             endpoint=config.endpoint or "http://localhost:4318",
         )
 
