@@ -2,8 +2,8 @@
 
 import pytest
 
-from processpype.core.models import ServiceState
 from processpype.examples.hello import HelloService
+from processpype.service.models import ServiceState
 
 
 class TestHelloService:

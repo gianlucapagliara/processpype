@@ -1,34 +1,47 @@
 """Example usage of ProcessPype framework.
 
-Demonstrates registering and running example services.
+Demonstrates creating a minimal service and running the application.
 """
 
 import asyncio
+import logging
 
-from processpype.core import Application
-from processpype.core.configuration.models import ApplicationConfiguration
-from processpype.examples import CounterService, HelloService, TickerService
+from processpype import Application, ProcessPypeConfig, Service, ServiceManager
+from processpype.config.models import ServiceConfiguration
+
+
+class HelloManager(ServiceManager):
+    """Simple manager that logs a greeting on start."""
+
+    async def start(self) -> None:
+        self.logger.info("Hello from the example service!")
+
+    async def stop(self) -> None:
+        self.logger.info("Goodbye from the example service!")
+
+
+class HelloService(Service):
+    """Minimal example service."""
+
+    configuration_class = ServiceConfiguration
+
+    def create_manager(self) -> ServiceManager:
+        return HelloManager(self.logger)
+
+    def requires_configuration(self) -> bool:
+        return False
 
 
 async def main() -> None:
-    app = Application(
-        ApplicationConfiguration(
-            title="Example App",
-            version="1.0.0",
-        )
+    config = ProcessPypeConfig(
+        app={"title": "Example App", "version": "1.0.0"},
     )
-
+    app = Application(config)
     await app.initialize()
 
-    # Register example services
+    # Register and start the example service
     app.register_service(HelloService)
-    app.register_service(CounterService)
-    app.register_service(TickerService)
-
-    # Start services
     await app.start_service("hello")
-    await app.start_service("counter")
-    await app.start_service("ticker")
 
     try:
         await app.start()
@@ -37,4 +50,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())

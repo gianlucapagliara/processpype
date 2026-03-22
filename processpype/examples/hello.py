@@ -1,17 +1,9 @@
-"""HelloService — Minimal service example.
+"""HelloService — Minimal service example."""
 
-Demonstrates:
-- Basic Service/ServiceManager implementation
-- Service that requires no configuration
-- Simple start/stop lifecycle
-"""
-
-from processpype.core.service import Service, ServiceManager
+from processpype.service import Service, ServiceManager
 
 
 class HelloManager(ServiceManager):
-    """Manager that logs a greeting on start and farewell on stop."""
-
     async def start(self) -> None:
         self.logger.info("Hello from ProcessPype!")
 
@@ -20,13 +12,7 @@ class HelloManager(ServiceManager):
 
 
 class HelloService(Service):
-    """A minimal service that requires no configuration.
-
-    Usage::
-
-        app.register_service(HelloService)
-        await app.start_service("hello")
-    """
+    """A minimal service that requires no configuration."""
 
     configuration_class = None  # type: ignore[assignment]
 

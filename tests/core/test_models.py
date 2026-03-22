@@ -2,7 +2,7 @@
 
 import pytest
 
-from processpype.core.models import ApplicationStatus, ServiceState, ServiceStatus
+from processpype.service.models import ApplicationStatus, ServiceState, ServiceStatus
 
 
 def test_service_state_values() -> None:

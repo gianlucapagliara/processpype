@@ -8,12 +8,16 @@ import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
-from processpype.core.models import ServiceState
-from processpype.core.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.application import Application
+from processpype.config.models import (
+    AppConfig,
+    ProcessPypeConfig,
+    ServerConfig,
+)
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
+from processpype.service.manager import ServiceManager
+from processpype.service.models import ServiceState
 
 
 class MockService(Service):
@@ -67,23 +71,27 @@ class MockService(Service):
 
 
 @pytest.fixture
-def test_config() -> ApplicationConfiguration:
+def test_config() -> ProcessPypeConfig:
     """Create a test application configuration with API prefix."""
-    return ApplicationConfiguration(
-        title="Test App",
-        version="1.0.0",
-        host="localhost",
-        port=8080,
-        debug=True,
-        environment="testing",
+    return ProcessPypeConfig(
+        app=AppConfig(
+            title="Test App",
+            version="1.0.0",
+            environment="testing",
+            debug=True,
+        ),
+        server=ServerConfig(
+            host="localhost",
+            port=8080,
+            api_prefix="/api",
+        ),
         services={},
-        api_prefix="/api",
     )
 
 
 @pytest.fixture
 async def application(
-    test_config: ApplicationConfiguration,
+    test_config: ProcessPypeConfig,
 ) -> AsyncIterator[Application]:
     """Create test application instance."""
     app = Application(test_config)

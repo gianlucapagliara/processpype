@@ -1,11 +1,4 @@
-"""TickerService — Service with a background async loop.
-
-Demonstrates:
-- Background task management in ServiceManager
-- Graceful shutdown with task cancellation
-- Periodic work pattern (tick loop)
-- Configuration with interval control
-"""
+"""TickerService — Service with a background async loop."""
 
 import asyncio
 import logging
@@ -13,21 +6,17 @@ from typing import Any
 
 from pydantic import Field
 
-from processpype.core.configuration.models import ServiceConfiguration
-from processpype.core.service import Service, ServiceManager
+from processpype.config.models import ServiceConfiguration
+from processpype.service import Service, ServiceManager
 
 
 class TickerConfiguration(ServiceConfiguration):
-    """Configuration for the ticker service."""
-
     interval_seconds: float = Field(
         default=1.0, gt=0, description="Seconds between ticks"
     )
 
 
 class TickerManager(ServiceManager):
-    """Manager that runs a periodic tick loop in the background."""
-
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__(logger)
         self._interval: float = 1.0
@@ -64,14 +53,7 @@ class TickerManager(ServiceManager):
 
 
 class TickerService(Service):
-    """A service with a background async loop.
-
-    Usage::
-
-        app.register_service(TickerService)
-        await app.start_service("ticker")
-        # The ticker will log a message every interval_seconds
-    """
+    """A service with a background async loop."""
 
     configuration_class = TickerConfiguration
 

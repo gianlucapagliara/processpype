@@ -6,11 +6,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from processpype.core.models import ServiceState
-from processpype.core.router import ApplicationRouter
-from processpype.core.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.server.app_router import ApplicationRouter
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
+from processpype.service.manager import ServiceManager
+from processpype.service.models import ServiceState
 
 
 class MockService(Service):

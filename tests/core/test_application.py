@@ -8,22 +8,22 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 
-from processpype.core.application import Application
-from processpype.core.configuration.models import (
-    ApplicationConfiguration,
+from processpype.application import Application
+from processpype.config.models import (
+    ProcessPypeConfig,
     ServiceConfiguration,
 )
-from processpype.core.models import ServiceState
-from processpype.core.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
+from processpype.service.manager import ServiceManager
+from processpype.service.models import ServiceState
 
 # app_config fixture is now defined in conftest.py
 
 
 @pytest.fixture
 async def app(
-    app_config: ApplicationConfiguration,
+    app_config: ProcessPypeConfig,
 ) -> AsyncGenerator[Application]:
     """Create test application instance."""
     app = Application(app_config)
@@ -90,7 +90,7 @@ class MockService(Service):
 
 
 @pytest.mark.asyncio
-async def test_application_creation(app_config: ApplicationConfiguration) -> None:
+async def test_application_creation(app_config: ProcessPypeConfig) -> None:
     """Test application creation."""
     app = Application(app_config)
     assert app.config == app_config
@@ -100,22 +100,12 @@ async def test_application_creation(app_config: ApplicationConfiguration) -> Non
 @pytest.mark.asyncio
 async def test_application_create_from_config() -> None:
     """Test application creation from config file."""
-    with patch(
-        "processpype.core.configuration.ConfigurationManager.load_application_config"
-    ) as mock_load:
-        mock_load.return_value = ApplicationConfiguration(
-            title="Test App",
-            version="1.0.0",
-            host="localhost",
-            port=8080,
-            debug=True,
-            environment="testing",
-        )
+    with patch("processpype.application.load_config") as mock_load:
+        mock_load.return_value = ProcessPypeConfig()
 
         app = await Application.create(config_file="test.yaml")
-        assert app.config.title == "Test App"
-        assert app.config.version == "1.0.0"
-        mock_load.assert_called_once_with(config_file="test.yaml")
+        assert app.config.app.title == "ProcessPype"
+        mock_load.assert_called_once_with("test.yaml")
 
 
 @pytest.mark.asyncio
@@ -170,7 +160,7 @@ async def test_service_registration(app: Application) -> None:
 
 @pytest.mark.asyncio
 async def test_service_registration_before_init(
-    app_config: ApplicationConfiguration,
+    app_config: ProcessPypeConfig,
 ) -> None:
     """Test service registration before initialization."""
     application = Application(app_config)
@@ -211,7 +201,7 @@ async def test_get_service(app: Application) -> None:
 
 @pytest.mark.asyncio
 async def test_application_context_manager(
-    app_config: ApplicationConfiguration,
+    app_config: ProcessPypeConfig,
 ) -> None:
     """Test application as async context manager."""
     application = Application(app_config)

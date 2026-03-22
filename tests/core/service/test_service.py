@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pydantic import Field
 
-from processpype.core.configuration.models import ServiceConfiguration
-from processpype.core.models import ServiceState
-from processpype.core.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.config.models import ServiceConfiguration
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
+from processpype.service.manager import ServiceManager
+from processpype.service.models import ServiceState
 
 
 @pytest.fixture

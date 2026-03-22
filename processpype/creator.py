@@ -1,119 +1,89 @@
-"""Main application entry point with service management."""
+"""Application entry point factory."""
 
 import os
 import signal
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
-from processpype.services import get_available_services
+from fastapi import FastAPI
+
+from processpype.application import Application
+from processpype.config.models import ProcessPypeConfig
+from processpype.service.registry import get_available_services
 
 
 class ApplicationCreator:
+    """Singleton factory for creating and managing the Application instance."""
+
     is_shutting_down = False
     app: Application | None = None
-
-    @staticmethod
-    def get_env_config() -> dict[str, Any]:
-        """Get configuration from environment variables."""
-        return {
-            "title": os.getenv("APP_TITLE", "Trading Application"),
-            "host": os.getenv("APP_HOST", "0.0.0.0"),
-            "port": int(os.getenv("APP_PORT", "8000")),
-            "debug": os.getenv("APP_DEBUG", "false").lower() == "true",
-            "environment": os.getenv("APP_ENV", "production"),
-            "logfire_key": os.getenv("LOGFIRE_KEY"),
-            "api_prefix": os.getenv("API_PREFIX", ""),
-        }
 
     @classmethod
     def get_application(
         cls,
-        config: ApplicationConfiguration | None = None,
+        config: ProcessPypeConfig | None = None,
         application_class: type[Application] = Application,
     ) -> Application:
-        """Create the application instance."""
         if cls.app is not None:
             return cls.app
 
-        config = config or ApplicationConfiguration(**cls.get_env_config())
+        config = config or ProcessPypeConfig()
         cls.app = application_class(config)
-        cls._setup_startup_callback()
-        cls._setup_shutdown_callback()
+        cls._setup_lifespan()
         return cls.app
 
     @classmethod
-    def _setup_startup_callback(cls) -> None:
+    def _setup_lifespan(cls) -> None:
         app = cls.app
         if app is None:
             raise RuntimeError("Application not initialized")
 
-        def handle_signals() -> None:
-            """Setup signal handlers for graceful shutdown."""
+        cls._install_signal_handlers(app)
 
-            def _signal_handler(sig_num: int, _: Any) -> None:
-                """Handle shutdown signals by triggering graceful shutdown."""
-                # Convert signal number to enum for logging
-                sig = signal.Signals(sig_num)
-                app.logger.warning(
-                    f"Received signal {sig.name}, initiating graceful shutdown..."
-                )
-                app.logger.warning("Triggering Uvicorn shutdown...")
-
-                # Exit with appropriate status code
-                # This will trigger uvicorn's graceful shutdown
-                sys.exit(0)
-
-            # Handle SIGTERM (docker stop) and SIGINT (Ctrl+C)
-            for sig in (signal.SIGTERM, signal.SIGINT):
-                signal.signal(sig, _signal_handler)
-            app.logger.info(
-                "Signal handlers configured for graceful shutdown (SIGTERM, SIGINT)"
-            )
-
-        @app.api.on_event("startup")
-        async def startup_event() -> None:
-            """Initialize the application and services on startup."""
-            # Initialize the application first to set up logging
+        @asynccontextmanager
+        async def lifespan(_fastapi_app: FastAPI) -> AsyncIterator[None]:
             await app.initialize()
-
-            # Setup signal handlers
-            handle_signals()
-            app.logger.info("Signal handlers configured for graceful shutdown")
-
-            # Start enabled services
-            services_to_enable = os.getenv("ENABLED_SERVICES", "").split(",")
-            for service_name in services_to_enable:
-                service_name = service_name.strip()
-                if service_name == "":
-                    continue
-
-                if service_name not in get_available_services():
-                    app.logger.warning(f"Service {service_name} not found")
-                    continue
-
-                try:
-                    app.register_service(
-                        get_available_services()[service_name], name=service_name
-                    )
-                    await app.start_service(service_name)
-                    app.logger.info(f"Service {service_name} registered and started")
-                except Exception as e:
-                    app.logger.error(f"Failed to start service {service_name}: {e}")
-
-    @classmethod
-    def _setup_shutdown_callback(cls) -> None:  # noqa: C901
-        app = cls.app
-        if app is None:
-            raise RuntimeError("Application not initialized")
-
-        @app.api.on_event("shutdown")
-        async def shutdown_event() -> None:
-            """Stop the application on shutdown."""
+            await cls._start_enabled_services(app)
+            yield
             if not cls.is_shutting_down:
                 cls.is_shutting_down = True
                 app.logger.warning("FastAPI shutdown event triggered")
-                app.logger.warning("Stopping application...")
                 await app.stop()
                 app.logger.warning("Application shutdown complete")
+
+        app.api.router.lifespan_context = lifespan
+
+    @staticmethod
+    def _install_signal_handlers(app: Application) -> None:
+        def _signal_handler(sig_num: int, _: Any) -> None:
+            sig = signal.Signals(sig_num)
+            app.logger.warning(
+                f"Received signal {sig.name}, initiating graceful shutdown..."
+            )
+            sys.exit(0)
+
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, _signal_handler)
+        app.logger.info(
+            "Signal handlers configured for graceful shutdown (SIGTERM, SIGINT)"
+        )
+
+    @staticmethod
+    async def _start_enabled_services(app: Application) -> None:
+        services_to_enable = os.getenv("ENABLED_SERVICES", "").split(",")
+        available = get_available_services()
+        for service_name in services_to_enable:
+            service_name = service_name.strip()
+            if not service_name:
+                continue
+            if service_name not in available:
+                app.logger.warning(f"Service {service_name} not found")
+                continue
+            try:
+                app.register_service(available[service_name], name=service_name)
+                await app.start_service(service_name)
+                app.logger.info(f"Service {service_name} registered and started")
+            except Exception as e:
+                app.logger.error(f"Failed to start service {service_name}: {e}")
