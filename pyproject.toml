@@ -32,6 +32,7 @@ dev = [
     "pre-commit>=4.0",
     "types-pyyaml>=6.0.12.20241230",
     "types-pytz>=2024.2.0.20241221",
+    "pytest-timeout>=2.3",
 ]
 docs = [
     "mkdocs>=1.6",
@@ -76,3 +77,5 @@ ignore = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 30
+testpaths = ["tests"]
