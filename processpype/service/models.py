@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ServiceState(StrEnum):
@@ -23,7 +23,7 @@ class ServiceStatus(BaseModel):
 
     state: ServiceState
     error: str | None = None
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
     is_configured: bool = False
 
 

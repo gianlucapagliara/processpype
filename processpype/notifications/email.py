@@ -5,6 +5,8 @@ import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Any
 
 from processpype.notifications.base import NotifierBase
 
@@ -29,6 +31,19 @@ class EmailBot(NotifierBase):
             self.server.login(user=from_address, password=password)
         else:
             self.server = smtplib.SMTP(host=host, port=port, timeout=10)
+
+    def add_msg_to_queue(self, msg: str, label: str = "default", **kwargs: Any) -> None:
+        to_addresses = kwargs.get("to_addresses", [])
+        cc_addresses = kwargs.get("cc_addresses", [])
+        subject = kwargs.get("subject", label)
+        self.send_msg(to_addresses, cc_addresses, subject, msg)
+
+    async def start(self) -> None:
+        self._started = True
+
+    async def stop(self) -> None:
+        self.disconnect()
+        self._started = False
 
     def disconnect(self) -> None:
         self.server.quit()
@@ -57,11 +72,10 @@ class EmailBot(NotifierBase):
         message["Subject"] = subject
         message.attach(MIMEText(body_html, "html"))
         for file_path in attachments:
-            with open(file_path, "rb") as f:
-                attach = MIMEApplication(f.read(), _subtype=file_path.split(".")[-1])
-            attach.add_header(
-                "content-disposition", "attachment", filename=file_path.split("\\")[-1]
-            )
+            p = Path(file_path)
+            with open(p, "rb") as f:
+                attach = MIMEApplication(f.read(), _subtype=p.suffix.lstrip("."))
+            attach.add_header("content-disposition", "attachment", filename=p.name)
             message.attach(attach)
         msg = header + message.as_string()
         try:

@@ -7,6 +7,8 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from processpype.observability.logging.levels import EVENT_LOG, NETWORK, TRACE, TRACK
+
 _RESERVED_RECORD_ATTRS = {
     "args",
     "asctime",
@@ -45,12 +47,12 @@ class TextFormatter(logging.Formatter):
 class ColorFormatter(TextFormatter):
     _RESET = "\x1b[0m"
     _COLORS = {
-        5: "\x1b[34;20m",  # TRACE
+        TRACE: "\x1b[34;20m",
         logging.DEBUG: "\x1b[37;20m",
         logging.INFO: "\x1b[32;20m",
-        15: "\x1b[36;20m",  # TRACK
-        16: "\x1b[35;20m",  # NETWORK
-        17: "\x1b[36;1m",  # EVENT_LOG
+        TRACK: "\x1b[36;20m",
+        NETWORK: "\x1b[35;20m",
+        EVENT_LOG: "\x1b[36;1m",
         logging.WARNING: "\x1b[33;20m",
         logging.ERROR: "\x1b[31;20m",
         logging.CRITICAL: "\x1b[31;1m",

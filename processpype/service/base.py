@@ -9,6 +9,7 @@ from processpype.config.models import ServiceConfiguration
 
 from .manager import ServiceManager
 from .models import ServiceState, ServiceStatus
+from .naming import derive_service_name
 
 
 class ConfigurationError(Exception):
@@ -27,7 +28,7 @@ class Service(ABC):
     configuration_class: type[ServiceConfiguration]
 
     def __init__(self, name: str | None = None) -> None:
-        self._name = name or self.__class__.__name__.lower().replace("service", "")
+        self._name = name or derive_service_name(self.__class__)
         self._logger: logging.Logger | None = None
         self._config: ServiceConfiguration | None = None
         self._status = ServiceStatus(
@@ -79,7 +80,21 @@ class Service(ABC):
                 f"Autostarting {self.name} service",
                 extra={"service_state": self.status.state},
             )
-            asyncio.ensure_future(self.start())
+            try:
+                loop = asyncio.get_running_loop()
+                task = loop.create_task(self.start(), name=f"autostart-{self.name}")
+                task.add_done_callback(self._on_autostart_done)
+            except RuntimeError:
+                self.logger.warning(
+                    f"No running event loop; {self.name} autostart deferred. "
+                    "Call await service.start() manually."
+                )
+
+    def _on_autostart_done(self, task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            self.logger.warning(f"Autostart of {self.name} service was cancelled")
+        elif (exc := task.exception()) is not None:
+            self.set_error(f"Autostart of {self.name} service failed: {exc}")
 
     def _validate_configuration(self) -> None:
         if self._config is None:

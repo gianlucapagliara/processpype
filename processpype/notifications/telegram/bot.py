@@ -78,8 +78,8 @@ class TelegramMessage(NamedTuple):
 @dataclass
 class ChatConfiguration:
     label: str
-    chat_id: str
-    topic_id: str | None = None
+    chat_id: int
+    topic_id: int | None = None
     offset: int = 0
     end: int = 0
     destinations: list[int] | None = None
@@ -155,7 +155,6 @@ class TelegramBot(NotifierBase):
             self._bot.add_event_handler(self.new_message_handler, event=NewMessage)
 
         self._msg_queue: asyncio.Queue[TelegramMessage] = asyncio.Queue()
-        self._ev_loop = asyncio.get_event_loop()
         self._listen_msg_task: asyncio.Task[Any] | None = None
         self._send_msg_task: asyncio.Task[Any] | None = None
         self._reply_markup = None

@@ -1,8 +1,8 @@
 """Tracing subsystem for ProcessPype observability."""
 
 from processpype.observability.tracing.decorators import (
-    _should_trace,
     add_span_event,
+    should_trace,
     trace_action,
     trace_span,
 )
@@ -18,7 +18,7 @@ from processpype.observability.tracing.setup import (
 __all__ = [
     "NoOpSpan",
     "NoOpTracer",
-    "_should_trace",
+    "should_trace",
     "add_span_event",
     "get_tracer",
     "get_tracing_config",

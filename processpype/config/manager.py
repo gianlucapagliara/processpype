@@ -5,6 +5,8 @@ from typing import Any
 from .models import ProcessPypeConfig
 from .providers import FileProvider
 
+__all__ = ["load_config"]
+
 
 async def load_config(
     config_file: str | None = None, **overrides: Any
@@ -32,25 +34,3 @@ async def load_config(
             data[key] = value
 
     return ProcessPypeConfig.model_validate(data)
-
-
-class ConfigurationManager:
-    """Manages configuration state at runtime.
-
-    For most use-cases, the ``load_config()`` function is sufficient.
-    Use ConfigurationManager when you need to mutate or persist config at runtime.
-    """
-
-    def __init__(self, config: ProcessPypeConfig) -> None:
-        self._config = config
-
-    @property
-    def config(self) -> ProcessPypeConfig:
-        return self._config
-
-    @classmethod
-    async def from_file(
-        cls, config_file: str | None = None, **overrides: Any
-    ) -> "ConfigurationManager":
-        config = await load_config(config_file, **overrides)
-        return cls(config)

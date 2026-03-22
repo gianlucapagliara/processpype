@@ -82,9 +82,16 @@ class ContextConfig(ConfigurationModel):
 class LoggingConfig(ConfigurationModel):
     """Logging subsystem configuration."""
 
+    enabled: bool = Field(
+        default=True, description="When False, no logging handlers are installed"
+    )
     level: str = Field(default="INFO", description="Root log level")
     format: str = Field(
         default="color", description="Default format: text | color | json"
+    )
+    loggers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-logger level overrides, e.g. {'noisy.lib': 'WARNING'}",
     )
     custom_levels: dict[str, int] = Field(
         default_factory=dict, description="Custom log level name → numeric value"
@@ -116,6 +123,14 @@ class TracingConfig(ConfigurationModel):
     logfire: LogfireConfig = Field(default_factory=LogfireConfig)
     sampling_rate: float = Field(
         default=1.0, ge=0.0, le=1.0, description="Trace sampling rate"
+    )
+    instrumentation_name: str = Field(
+        default="processpype",
+        description="OpenTelemetry instrumentation scope name",
+    )
+    instrumentation_version: str = Field(
+        default="1.0.0",
+        description="OpenTelemetry instrumentation scope version",
     )
 
 

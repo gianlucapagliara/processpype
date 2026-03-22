@@ -15,7 +15,7 @@ from processpype.observability.tracing.setup import get_tracer, is_tracing_enabl
 ERROR_STATUS_CODE = 2
 
 
-def _should_trace(name: str) -> bool:
+def should_trace(name: str) -> bool:
     """Check if tracing is enabled for the given span/event name."""
     if not is_tracing_enabled():
         return False
@@ -64,7 +64,7 @@ def trace_action(
 
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                if not _should_trace(name):
+                if not should_trace(name):
                     return await func(*args, **kwargs)
                 tracer = get_tracer()
                 attrs = _extract_attributes(func, args, kwargs, extract_attrs)
@@ -79,7 +79,7 @@ def trace_action(
 
         @functools.wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            if not _should_trace(name):
+            if not should_trace(name):
                 return func(*args, **kwargs)
             tracer = get_tracer()
             attrs = _extract_attributes(func, args, kwargs, extract_attrs)
@@ -98,7 +98,7 @@ def trace_action(
 @contextmanager
 def trace_span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
     """Context manager that creates a child span."""
-    if not _should_trace(name):
+    if not should_trace(name):
         yield NoOpSpan()
         return
 
@@ -113,7 +113,7 @@ def trace_span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[
 
 def add_span_event(name: str, attributes: dict[str, Any] | None = None) -> None:
     """Record an event on the currently active span (if any)."""
-    if not _should_trace(name):
+    if not should_trace(name):
         return
 
     try:

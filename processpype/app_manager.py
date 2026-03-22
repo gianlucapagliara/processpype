@@ -6,6 +6,7 @@ from typing import Any
 from processpype.config.models import ProcessPypeConfig, ServiceConfiguration
 from processpype.service.base import Service
 from processpype.service.models import ServiceState
+from processpype.service.naming import derive_service_name
 
 
 class ApplicationManager:
@@ -29,7 +30,7 @@ class ApplicationManager:
         self, service_class: type[Service], name: str | None = None
     ) -> Service:
         if name is None:
-            base_name = service_class.__name__.lower().replace("service", "")
+            base_name = derive_service_name(service_class)
             existing = [s for s in self._services.keys() if s.startswith(base_name)]
             name = f"{base_name}_{len(existing)}" if existing else base_name
 

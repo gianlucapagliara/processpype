@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .naming import derive_service_name
+
 if TYPE_CHECKING:
     from .base import Service
 
@@ -20,7 +22,7 @@ def register_service_class(service_class: type[Service]) -> type[Service]:
         class MyService(Service):
             ...
     """
-    service_name = service_class.__name__.lower().replace("service", "")
+    service_name = derive_service_name(service_class)
     AVAILABLE_SERVICES[service_name] = service_class
     return service_class
 

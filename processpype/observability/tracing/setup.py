@@ -82,7 +82,10 @@ def _setup_otel(config: TracingConfig) -> None:
 
     from opentelemetry import trace
 
-    _tracer = trace.get_tracer(config.service_name, "1.0.0")
+    _tracer = trace.get_tracer(
+        config.instrumentation_name or config.service_name,
+        config.instrumentation_version,
+    )
 
 
 def _setup_logfire(config: TracingConfig) -> None:

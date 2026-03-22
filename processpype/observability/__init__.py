@@ -2,7 +2,13 @@
 
 import logging as _logging
 
+from processpype.config.models import (
+    LoggingConfig,
+    ObservabilityConfig,
+    TracingConfig,
+)
 from processpype.observability.logging import (
+    NETWORK,
     init_logging,
 )
 from processpype.observability.setup import init_observability
@@ -13,6 +19,7 @@ from processpype.observability.tracing import (
     is_tracing_enabled,
     register_trace_filter,
     setup_tracing,
+    should_trace,
     trace_action,
     trace_span,
 )
@@ -25,6 +32,11 @@ def get_logger(name: str, prefix: str = "processpype") -> _logging.Logger:
 
 
 __all__ = [
+    "LoggingConfig",
+    "NETWORK",
+    "ObservabilityConfig",
+    "TracingConfig",
+    "should_trace",
     "add_span_event",
     "get_logger",
     "get_tracer",
