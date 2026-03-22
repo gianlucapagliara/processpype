@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype.config.models import AppConfig, ProcessPypeConfig, ServerConfig
 
 
 @pytest.fixture(scope="session")
@@ -49,12 +49,14 @@ def test_config_file(test_config_dir: Path) -> Path:
     with open(config_file, "w") as f:
         f.write(
             """
-title: Test App
-version: 1.0.0
-host: localhost
-port: 8080
-debug: true
-environment: testing
+app:
+  title: Test App
+  version: 1.0.0
+  environment: testing
+  debug: true
+server:
+  host: localhost
+  port: 8080
 services:
   test_service:
     autostart: true
@@ -64,14 +66,19 @@ services:
 
 
 @pytest.fixture
-def app_config() -> ApplicationConfiguration:
+def app_config() -> ProcessPypeConfig:
     """Create a test application configuration."""
-    return ApplicationConfiguration(
-        title="Test App",
-        version="1.0.0",
-        host="localhost",
-        port=8080,
-        debug=True,
-        environment="testing",
+    return ProcessPypeConfig(
+        app=AppConfig(
+            title="Test App",
+            version="1.0.0",
+            environment="testing",
+            debug=True,
+        ),
+        server=ServerConfig(
+            host="localhost",
+            port=8080,
+            closing_timeout_seconds=5,
+        ),
         services={},
     )

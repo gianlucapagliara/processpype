@@ -1,4 +1,4 @@
-"""Main application entry point with service management."""
+"""Main application entry point."""
 
 from processpype.creator import ApplicationCreator
 

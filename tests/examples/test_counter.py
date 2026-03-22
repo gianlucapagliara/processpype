@@ -2,12 +2,12 @@
 
 import pytest
 
-from processpype.core.models import ServiceState
 from processpype.examples.counter import (
     CounterConfiguration,
     CounterManager,
     CounterService,
 )
+from processpype.service.models import ServiceState
 
 
 class TestCounterConfiguration:

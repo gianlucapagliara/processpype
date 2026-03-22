@@ -6,15 +6,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from processpype.core.configuration.models import (
-    ApplicationConfiguration,
+from processpype.app_manager import ApplicationManager
+from processpype.config.models import (
+    AppConfig,
+    ProcessPypeConfig,
+    ServerConfig,
     ServiceConfiguration,
 )
-from processpype.core.manager import ApplicationManager
-from processpype.core.models import ServiceState
-from processpype.core.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
+from processpype.service.manager import ServiceManager
+from processpype.service.models import ServiceState
 
 
 @runtime_checkable
@@ -141,15 +143,19 @@ def logger() -> logging.Logger:
 
 
 @pytest.fixture
-def app_config() -> ApplicationConfiguration:
+def app_config() -> ProcessPypeConfig:
     """Create test application configuration."""
-    return ApplicationConfiguration(
-        title="Test App",
-        version="1.0.0",
-        host="localhost",
-        port=8080,
-        debug=True,
-        environment="testing",
+    return ProcessPypeConfig(
+        app=AppConfig(
+            title="Test App",
+            version="1.0.0",
+            environment="testing",
+            debug=True,
+        ),
+        server=ServerConfig(
+            host="localhost",
+            port=8080,
+        ),
         services={
             "test_service": ServiceConfiguration(
                 autostart=True,
@@ -160,7 +166,7 @@ def app_config() -> ApplicationConfiguration:
 
 @pytest.fixture
 def manager(
-    logger: logging.Logger, app_config: ApplicationConfiguration
+    logger: logging.Logger, app_config: ProcessPypeConfig
 ) -> ApplicationManager:
     """Create test manager instance."""
     return ApplicationManager(logger, app_config)

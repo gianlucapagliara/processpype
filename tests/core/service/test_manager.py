@@ -4,7 +4,7 @@ import logging
 
 import pytest
 
-from processpype.core.service.manager import ServiceManager
+from processpype.service.manager import ServiceManager
 
 
 class ConcreteServiceManager(ServiceManager):

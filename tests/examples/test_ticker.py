@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from processpype.core.models import ServiceState
 from processpype.examples.ticker import TickerConfiguration, TickerService
+from processpype.service.models import ServiceState
 
 
 class TestTickerConfiguration:

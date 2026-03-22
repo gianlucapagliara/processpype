@@ -1,10 +1,4 @@
-"""CounterService — Service with configuration and custom routes.
-
-Demonstrates:
-- Custom ServiceConfiguration with validation
-- Custom ServiceRouter with domain-specific endpoints
-- Stateful ServiceManager
-"""
+"""CounterService — Service with configuration and custom routes."""
 
 import logging
 from collections.abc import Callable
@@ -12,14 +6,12 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
-from processpype.core.configuration.models import ServiceConfiguration
-from processpype.core.service import Service, ServiceManager
-from processpype.core.service.router import ServiceRouter
+from processpype.config.models import ServiceConfiguration
+from processpype.server.service_router import ServiceRouter
+from processpype.service import Service, ServiceManager
 
 
 class CounterConfiguration(ServiceConfiguration):
-    """Configuration for the counter service."""
-
     initial_value: int = Field(default=0, description="Starting counter value")
     step: int = Field(default=1, description="Increment step size")
 
@@ -32,8 +24,6 @@ class CounterConfiguration(ServiceConfiguration):
 
 
 class CounterManager(ServiceManager):
-    """Manager that maintains a simple counter."""
-
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__(logger)
         self._value: int = 0
@@ -65,12 +55,10 @@ class CounterManager(ServiceManager):
 
 
 class CounterRouter(ServiceRouter):
-    """Router with custom endpoints for counter operations."""
-
     def __init__(
         self,
         name: str,
-        get_manager: "Callable[[], CounterManager]",
+        get_manager: Callable[[], CounterManager],
         **kwargs: Any,
     ) -> None:
         super().__init__(name=name, **kwargs)
@@ -80,31 +68,19 @@ class CounterRouter(ServiceRouter):
     def _setup_counter_routes(self) -> None:
         @self.get("/value")
         async def get_value() -> dict[str, int]:
-            """Get the current counter value."""
             return {"value": self._get_manager().value}
 
         @self.post("/increment")
         async def increment() -> dict[str, int]:
-            """Increment the counter."""
             return {"value": self._get_manager().increment()}
 
         @self.post("/reset")
         async def reset() -> dict[str, int]:
-            """Reset the counter to zero."""
             return {"value": self._get_manager().reset()}
 
 
 class CounterService(Service):
-    """A service with configuration and custom HTTP endpoints.
-
-    Usage::
-
-        app.register_service(CounterService)
-        await app.start_service("counter")
-        # POST /services/counter/increment
-        # GET  /services/counter/value
-        # POST /services/counter/reset
-    """
+    """A service with configuration and custom HTTP endpoints."""
 
     configuration_class = CounterConfiguration
 

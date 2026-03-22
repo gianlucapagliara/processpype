@@ -6,8 +6,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from processpype.core.models import ServiceState, ServiceStatus
-from processpype.core.service.router import ServiceRouter
+from processpype.server.service_router import ServiceRouter
+from processpype.service.models import ServiceState, ServiceStatus
 
 
 @pytest.fixture
