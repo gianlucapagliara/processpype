@@ -1,7 +1,7 @@
 [project]
 name = "processpype"
 version = "2.0.0"
-description = "A modular process environment framework: observability, notifications, server, and services — all driven by YAML config"
+description = "A modular process environment framework: observability, server, and services — all driven by YAML config"
 authors = [{ name = "Gianluca Pagliara", email = "pagliara.gianluca@gmail.com" }]
 readme = "README.md"
 license = { text = "MIT" }
@@ -28,9 +28,8 @@ otlp = [
     "opentelemetry-exporter-otlp>=1.20",
     "processpype[tracing]",
 ]
-telegram = ["telethon>=1.35"]
 full = [
-    "processpype[events,logfire,telegram]",
+    "processpype[events,logfire]",
 ]
 
 [project.urls]

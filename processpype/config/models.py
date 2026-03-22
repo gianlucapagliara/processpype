@@ -141,51 +141,6 @@ class ObservabilityConfig(ConfigurationModel):
     tracing: TracingConfig = Field(default_factory=TracingConfig)
 
 
-# --- Notifications ---
-
-
-class EmailConfig(ConfigurationModel):
-    """Email notification channel settings."""
-
-    enabled: bool = Field(default=False, description="Enable email notifications")
-    smtp_host: str = Field(default="", description="SMTP server host")
-    smtp_port: int = Field(default=587, description="SMTP server port")
-    smtp_user: str = Field(default="", description="SMTP username")
-    smtp_password: str = Field(default="", description="SMTP password")
-    from_address: str = Field(default="", description="Sender email address")
-    default_recipients: list[str] = Field(
-        default_factory=list, description="Default recipient addresses"
-    )
-
-
-class TelegramChatConfig(ConfigurationModel):
-    """Configuration for a single Telegram chat destination."""
-
-    label: str = Field(default="default", description="Chat label identifier")
-    chat_id: int = Field(description="Telegram chat ID")
-    topic_id: int | None = Field(default=None, description="Optional topic/thread ID")
-
-
-class TelegramConfig(ConfigurationModel):
-    """Telegram notification channel settings."""
-
-    enabled: bool = Field(default=False, description="Enable Telegram notifications")
-    api_id: int = Field(default=0, description="Telegram API ID")
-    api_hash: str = Field(default="", description="Telegram API hash")
-    session_name: str = Field(default="processpype", description="Session file name")
-    chats: list[TelegramChatConfig] = Field(
-        default_factory=list, description="Chat destinations"
-    )
-
-
-class NotificationsConfig(ConfigurationModel):
-    """Notification subsystem configuration."""
-
-    enabled: bool = Field(default=False, description="Enable notifications")
-    email: EmailConfig = Field(default_factory=EmailConfig)
-    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
-
-
 # --- Root ---
 
 
@@ -206,8 +161,6 @@ class ProcessPypeConfig(ConfigurationModel):
           tracing:
             enabled: true
             backend: logfire
-        notifications:
-          enabled: false
         services:
           my_service:
             enabled: true
@@ -217,7 +170,6 @@ class ProcessPypeConfig(ConfigurationModel):
     app: AppConfig = Field(default_factory=AppConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
-    notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
     services: dict[str, ServiceConfiguration] = Field(
         default_factory=dict, description="Per-service configurations"
     )
