@@ -327,3 +327,94 @@ def test_set_state(manager: ApplicationManager) -> None:
 
     manager.set_state(ServiceState.STOPPED)
     assert manager.state.value == "stopped"
+
+
+async def test_service_registration_auto_name(manager: ApplicationManager) -> None:
+    """Test automatic name generation and deduplication."""
+    svc1 = manager.register_service(MockService)
+    # derive_service_name strips 'service' and lowercases -> 'mock'
+    assert svc1.name == "mock"
+
+    svc2 = manager.register_service(MockService)
+    assert svc2.name == "mock_1"
+
+
+async def test_configure_service(manager: ApplicationManager) -> None:
+    """Test configure_service delegates to the service."""
+    service = manager.register_service(MockService, name="cfg_svc")
+    manager.configure_service("cfg_svc", {"enabled": True})
+    assert service.configure_called
+
+
+async def test_configure_service_not_found(manager: ApplicationManager) -> None:
+    """Test configure_service raises for nonexistent service."""
+    with pytest.raises(ValueError, match="not found"):
+        manager.configure_service("ghost", {})
+
+
+async def test_configure_and_start_service(manager: ApplicationManager) -> None:
+    """Test configure_and_start_service delegates correctly."""
+    manager.register_service(MockService, name="cas_svc")
+    await manager.configure_and_start_service("cas_svc", {"enabled": True})
+    svc = manager.get_service("cas_svc")
+    assert svc is not None
+    assert svc.status.state == ServiceState.RUNNING
+
+
+async def test_configure_and_start_service_not_found(
+    manager: ApplicationManager,
+) -> None:
+    """Test configure_and_start_service raises for nonexistent service."""
+    with pytest.raises(ValueError, match="not found"):
+        await manager.configure_and_start_service("ghost", {})
+
+
+async def test_get_services_by_type(manager: ApplicationManager) -> None:
+    """Test filtering services by type."""
+    manager.register_service(MockService, name="svc_a")
+    manager.register_service(MockService, name="svc_b")
+
+    results = manager.get_services_by_type(MockService)
+    assert len(results) == 2
+
+
+async def test_start_enabled_services_disabled_via_dict() -> None:
+    """Test that services disabled via a raw dict config are skipped."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={
+            "my_svc": ServiceConfiguration(enabled=False),
+        },
+    )
+    mgr = ApplicationManager(logger, config)
+    svc = mgr.register_service(MockService, name="my_svc")
+    await mgr.start_enabled_services()
+    # Service was disabled, so it should NOT have been started
+    assert not svc.start_called
+
+
+async def test_start_enabled_services_skips_unconfigured_requiring_config(
+    manager: ApplicationManager,
+) -> None:
+    """Test that unconfigured services requiring config are not started."""
+    svc = manager.register_service(MockService, name="needs_config")
+    assert not svc.status.is_configured
+    await manager.start_enabled_services()
+    assert not svc.start_called
+
+
+async def test_stop_all_services_skips_non_running() -> None:
+    """Test that stop_all_services skips services not in RUNNING/STARTING state."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={},
+    )
+    mgr = ApplicationManager(logger, config)
+    svc = mgr.register_service(MockService, name="idle")
+    # Service is INITIALIZED, not RUNNING — should be skipped
+    await mgr.stop_all_services()
+    assert not svc.stop_called

@@ -121,43 +121,173 @@ async def test_list_services(client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_start_service_success(client: TestClient) -> None:
-    """Test successful service start."""
-    # Skip this test as the endpoint is no longer available in the router
-    # Service operations are now handled by the Application class
-    pytest.skip("Service operations are now handled by the Application class")
+async def test_register_service_no_app_instance(client: TestClient) -> None:
+    """Test register endpoint when Application.get_instance() returns None."""
+    from unittest.mock import patch
+
+    from processpype.application import Application
+
+    with patch.object(Application, "get_instance", return_value=None):
+        response = client.post(
+            "/services/register",
+            json={"service_name": "foo"},
+        )
+    assert response.status_code == 500
+    assert "not available" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_start_service_not_found(client: TestClient) -> None:
-    """Test starting non-existent service."""
-    # Skip this test as the endpoint is no longer available in the router
-    # Service operations are now handled by the Application class
-    pytest.skip("Service operations are now handled by the Application class")
+async def test_register_service_class_not_found(client: TestClient) -> None:
+    """Test register endpoint when service class is not in the registry."""
+    from unittest.mock import MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.register_service_by_name.return_value = None
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.post(
+            "/services/register",
+            json={"service_name": "nonexistent"},
+        )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_stop_service_success(client: TestClient) -> None:
-    """Test successful service stop."""
-    # Skip this test as the endpoint is no longer available in the router
-    # Service operations are now handled by the Application class
-    pytest.skip("Service operations are now handled by the Application class")
+async def test_register_service_success(client: TestClient) -> None:
+    """Test successful service registration via the endpoint."""
+    from unittest.mock import MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_service = MagicMock()
+    mock_service.name = "my_svc"
+    mock_service.__class__.__name__ = "MySvc"
+
+    mock_app = MagicMock()
+    mock_app.register_service_by_name.return_value = mock_service
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.post(
+            "/services/register",
+            json={"service_name": "my_svc", "instance_name": "inst1"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "registered"
+    assert data["service"] == "my_svc"
 
 
 @pytest.mark.asyncio
-async def test_stop_service_not_found(client: TestClient) -> None:
-    """Test stopping non-existent service."""
-    # Skip this test as the endpoint is no longer available in the router
-    # Service operations are now handled by the Application class
-    pytest.skip("Service operations are now handled by the Application class")
+async def test_register_service_value_error(client: TestClient) -> None:
+    """Test register endpoint returns 400 on ValueError."""
+    from unittest.mock import MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.register_service_by_name.side_effect = ValueError("duplicate")
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.post(
+            "/services/register",
+            json={"service_name": "dup"},
+        )
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_service_operation_error(
-    client: TestClient,
-    mock_services: dict[str, Service],
-) -> None:
-    """Test error handling during service operations."""
-    # Skip this test as it's no longer applicable with the new router implementation
-    # The service operations are now handled by the Application class
-    pytest.skip("Service operations are now handled by the Application class")
+async def test_register_service_generic_error(client: TestClient) -> None:
+    """Test register endpoint returns 500 on unexpected error."""
+    from unittest.mock import MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.register_service_by_name.side_effect = RuntimeError("boom")
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.post(
+            "/services/register",
+            json={"service_name": "x"},
+        )
+    assert response.status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_no_app_instance(client: TestClient) -> None:
+    """Test deregister endpoint when Application instance is None."""
+    from unittest.mock import patch
+
+    from processpype.application import Application
+
+    with patch.object(Application, "get_instance", return_value=None):
+        response = client.delete("/services/svc1")
+    assert response.status_code == 500
+    assert "not available" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_success(client: TestClient) -> None:
+    """Test successful service deregistration."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.deregister_service = AsyncMock(return_value=True)
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.delete("/services/svc1")
+    assert response.status_code == 200
+    assert response.json()["status"] == "deregistered"
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_failure(client: TestClient) -> None:
+    """Test deregister endpoint when deregister returns False."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.deregister_service = AsyncMock(return_value=False)
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.delete("/services/svc1")
+    assert response.status_code == 500
+    assert "Failed to deregister" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_value_error(client: TestClient) -> None:
+    """Test deregister endpoint returns 404 on ValueError (not found)."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.deregister_service = AsyncMock(
+        side_effect=ValueError("Service svc1 not found")
+    )
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.delete("/services/svc1")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_generic_error(client: TestClient) -> None:
+    """Test deregister endpoint returns 500 on unexpected error."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from processpype.application import Application
+
+    mock_app = MagicMock()
+    mock_app.deregister_service = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with patch.object(Application, "get_instance", return_value=mock_app):
+        response = client.delete("/services/svc1")
+    assert response.status_code == 500

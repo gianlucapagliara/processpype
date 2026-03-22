@@ -169,3 +169,158 @@ def test_service_status() -> None:
     assert service.status.state == ServiceState.INITIALIZED
     assert service.status.error is None
     assert service.status.metadata == {}
+
+
+@pytest.mark.asyncio
+async def test_service_start_without_configuration() -> None:
+    """Test that starting a service that requires configuration raises ConfigurationError."""
+    from processpype.service.base import ConfigurationError
+
+    service = MockService()
+    assert service.requires_configuration()
+    assert not service.status.is_configured
+
+    with pytest.raises(ConfigurationError, match="must be configured"):
+        await service.start()
+    assert service.status.state == ServiceState.ERROR
+
+
+@pytest.mark.asyncio
+async def test_service_start_from_invalid_state() -> None:
+    """Test that starting a service from RUNNING state raises RuntimeError."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=False, metadata={})
+    service.configure(config)
+    await service.start()
+    assert service.status.state == ServiceState.RUNNING
+
+    with pytest.raises(RuntimeError, match="cannot be started"):
+        await service.start()
+
+
+@pytest.mark.asyncio
+async def test_service_start_manager_error() -> None:
+    """Test error handling when manager.start() raises."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=False, metadata={})
+    service.configure(config)
+
+    service.manager.start = _raise_start  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="manager boom"):
+        await service.start()
+    assert service.status.state == ServiceState.ERROR
+
+
+async def _raise_start() -> None:
+    raise RuntimeError("manager boom")
+
+
+@pytest.mark.asyncio
+async def test_service_stop_manager_error() -> None:
+    """Test error handling when manager.stop() raises."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=False, metadata={})
+    service.configure(config)
+    await service.start()
+
+    async def _raise_stop() -> None:
+        raise RuntimeError("stop boom")
+
+    service.manager.stop = _raise_stop  # type: ignore[method-assign]
+
+    await service.stop()
+    assert service.status.state == ServiceState.ERROR
+    assert "stop boom" in (service.status.error or "")
+
+
+@pytest.mark.asyncio
+async def test_autostart_with_running_loop() -> None:
+    """Test that configure with autostart=True creates a task on the running loop."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=True, metadata={})
+
+    # We're already inside a running event loop (pytest-asyncio), so autostart
+    # should schedule a task.
+    service.configure(config)
+    assert service.status.is_configured
+
+    # Give the autostart task a chance to run
+    await asyncio.sleep(0.05)
+    assert service.status.state == ServiceState.RUNNING
+
+
+def test_autostart_without_running_loop() -> None:
+    """Test that configure with autostart=True warns when no event loop is running."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=True, metadata={})
+
+    # Outside of an async context there is no running loop
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        service.configure(config)
+
+    # Service should still be configured, but not running
+    assert service.status.is_configured
+    assert service.status.state != ServiceState.RUNNING
+
+
+@pytest.mark.asyncio
+async def test_autostart_done_callback_cancelled() -> None:
+    """Test _on_autostart_done handles a cancelled task."""
+    service = MockService()
+
+    task = asyncio.get_event_loop().create_task(asyncio.sleep(10))
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # Should not raise
+    service._on_autostart_done(task)
+
+
+@pytest.mark.asyncio
+async def test_autostart_done_callback_exception() -> None:
+    """Test _on_autostart_done handles a failed task."""
+    service = MockService()
+
+    async def _fail() -> None:
+        raise ValueError("boom")
+
+    task = asyncio.get_event_loop().create_task(_fail())
+    try:
+        await task
+    except ValueError:
+        pass
+
+    service._on_autostart_done(task)
+    assert service.status.state == ServiceState.ERROR
+    assert "boom" in (service.status.error or "")
+
+
+@pytest.mark.asyncio
+async def test_configure_and_start() -> None:
+    """Test configure_and_start configures and starts the service."""
+    service = MockService()
+    config = MockServiceConfiguration(autostart=False, metadata={"x": 1})
+
+    result = await service.configure_and_start(config)
+    assert result is service
+    assert service.status.is_configured
+    assert service.status.state == ServiceState.RUNNING
+
+
+def test_validate_configuration_none() -> None:
+    """Test _validate_configuration raises when config is None."""
+    from processpype.service.base import ConfigurationError
+
+    service = MockService()
+    assert service._config is None
+
+    with pytest.raises(ConfigurationError, match="has no configuration"):
+        service._validate_configuration()
+    assert not service.status.is_configured
