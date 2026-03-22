@@ -48,9 +48,7 @@ States are defined in `ServiceState` (a `StrEnum`):
 ### Minimal service
 
 ```python
-from processpype.core.service.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.configuration.models import ServiceConfiguration
+from processpype import Service, ServiceManager, ServiceConfiguration
 
 
 class EchoManager(ServiceManager):
@@ -75,7 +73,7 @@ class EchoService(Service):
 
 ```python
 from pydantic import Field
-from processpype.core.configuration.models import ServiceConfiguration
+from processpype import ServiceConfiguration
 
 
 class EchoConfiguration(ServiceConfiguration):
@@ -191,7 +189,7 @@ The `Service.start()` base method catches exceptions from `manager.start()`, cal
 Decorate a service class with `@register_service_class` to add it to the global registry, making it available via `app.register_service_by_name()` and `POST /services/register`:
 
 ```python
-from processpype.services import register_service_class
+from processpype.service import register_service_class
 
 
 @register_service_class

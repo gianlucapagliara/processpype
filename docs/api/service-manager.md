@@ -1,6 +1,6 @@
 # ServiceManager API Reference
 
-`processpype.core.service.manager.ServiceManager`
+`processpype.service.manager.ServiceManager`
 
 ## Class
 
@@ -8,8 +8,7 @@
 class ServiceManager(ABC):
     """Base class for service managers.
 
-    A service manager is responsible for handling the business logic
-    and state management for a service.
+    A service manager handles the business logic and state management for a service.
     """
 ```
 
@@ -62,7 +61,7 @@ Stop the service manager. Implement service-specific shutdown here: close connec
 
 ## ApplicationManager
 
-`processpype.core.manager.ApplicationManager`
+`processpype.app_manager.ApplicationManager`
 
 The application-level manager that owns the service registry and delegates lifecycle operations.
 
@@ -71,7 +70,7 @@ class ApplicationManager:
     def __init__(
         self,
         logger: logging.Logger,
-        config: ApplicationConfiguration,
+        config: ProcessPypeConfig,
     ) -> None
 ```
 
@@ -107,9 +106,9 @@ def register_service(
 ) -> Service
 ```
 
-Creates the service instance, applies any configuration from `ApplicationConfiguration.services`, and adds it to the registry.
+Creates the service instance, applies any configuration from `ProcessPypeConfig.services`, and adds it to the registry.
 
-Name auto-generation: strips `service` suffix from the class name (case-insensitive) and appends `_N` for duplicates.
+Name auto-generation: uses `derive_service_name()` to strip the `service` suffix from the class name (case-insensitive) and appends `_N` for duplicates.
 
 **Raises:** `ValueError` if the name is already registered.
 
@@ -119,7 +118,7 @@ Name auto-generation: strips `service` suffix from the class name (case-insensit
 async def start_enabled_services(self) -> None
 ```
 
-Iterates all registered services. Skips services where `config.enabled == False`. Starts services that are either configured or do not require configuration. Errors are caught, logged, and `set_error()` is called — other services continue starting.
+Iterates all registered services. Skips services where `config.enabled == False`. Starts services that are either configured or do not require configuration. Errors are caught, logged, and `set_error()` is called --- other services continue starting.
 
 ### `stop_all_services`
 

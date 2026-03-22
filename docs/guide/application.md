@@ -7,16 +7,11 @@ The `Application` class is the central orchestrator of a ProcessPype application
 ### Direct instantiation
 
 ```python
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype import Application, ProcessPypeConfig
 
-config = ApplicationConfiguration(
-    title="My Application",
-    version="1.0.0",
-    host="0.0.0.0",
-    port=8080,
-    debug=False,
-    environment="production",
+config = ProcessPypeConfig(
+    app={"title": "My Application", "version": "1.0.0", "environment": "production"},
+    server={"host": "0.0.0.0", "port": 8080},
 )
 app = Application(config)
 ```
@@ -27,7 +22,7 @@ app = Application(config)
 app = await Application.create("config.yaml")
 ```
 
-`Application.create()` uses the `ConfigurationManager` to load from a YAML file and merge environment variable overrides (prefixed with `PROCESSPYPE_`).
+`Application.create()` uses the `load_config()` function to load configuration from a YAML file, with support for `${ENV_VAR}` token replacement and optional keyword overrides.
 
 ### Singleton access
 
@@ -43,8 +38,8 @@ This is used internally by `ApplicationRouter` to resolve service operations fro
 
 Call `initialize()` before registering services or starting the server. This method:
 
-1. Sets up the system timezone (UTC by default)
-2. Configures Logfire if `logfire_key` is present in the configuration
+1. Sets up the environment (timezone, project directory, run ID)
+2. Initializes observability (logging formatters/filters and OpenTelemetry tracing)
 3. Creates the `ApplicationManager` (service registry)
 4. Mounts the `ApplicationRouter` onto the FastAPI instance
 
@@ -152,21 +147,35 @@ fastapi_app = app.api
 
 This allows full access to FastAPI features — middleware, background tasks, dependency injection, and the interactive docs at `/docs` and `/redoc`.
 
-The API prefix can be set via `ApplicationConfiguration.api_prefix`. All application and service routes are mounted under this prefix.
+The API prefix can be set via `ProcessPypeConfig.server.api_prefix`. All application and service routes are mounted under this prefix.
 
 ## Configuration Reference
 
-`ApplicationConfiguration` fields:
+`ProcessPypeConfig` is the root configuration model. It contains the following sub-models:
+
+### `AppConfig` (`config.app`)
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `title` | `"ProcessPype"` | API title shown in OpenAPI docs |
 | `version` | `"0.1.0"` | API version |
+| `environment` | `"development"` | Environment name |
+| `debug` | `False` | Debug mode (verbose logging) |
+| `timezone` | `"UTC"` | Application timezone |
+
+### `ServerConfig` (`config.server`)
+
+| Field | Default | Description |
+|-------|---------|-------------|
 | `host` | `"0.0.0.0"` | Uvicorn bind host |
 | `port` | `8000` | Uvicorn bind port |
-| `debug` | `False` | Debug mode (verbose logging) |
-| `environment` | `"development"` | Environment name for Logfire |
-| `logfire_key` | `None` | Logfire API token; enables Logfire if set |
 | `api_prefix` | `""` | URL prefix for all routes (e.g. `"/api/v1"`) |
 | `closing_timeout_seconds` | `60` | Max seconds to wait for services to stop |
-| `services` | `{}` | Per-service configuration dictionary |
+
+### `ObservabilityConfig` (`config.observability`)
+
+See the [Configuration](configuration.md) guide for full details on `logging` and `tracing` sub-models.
+
+### `services` (`config.services`)
+
+A dictionary mapping service names to `ServiceConfiguration` instances. See the [Services](services.md) guide for details.

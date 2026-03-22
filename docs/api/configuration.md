@@ -1,23 +1,21 @@
 # Configuration API Reference
 
-`processpype.core.configuration`
+`processpype.config`
 
 ## ConfigurationModel
 
-`processpype.core.configuration.models.ConfigurationModel`
+`processpype.config.models.ConfigurationModel`
 
 ```python
 class ConfigurationModel(BaseModel):
-    class Config:
-        extra = "allow"   # unknown fields are stored, not rejected
-        frozen = True     # immutable after creation
+    model_config = ConfigDict(extra="allow", frozen=True)
 ```
 
-Base for all configuration models. Extra fields are allowed so services can accept extended configuration from YAML without explicit field definitions.
+Base for all configuration models. Extra fields are allowed so services can accept extended configuration from YAML without explicit field definitions. Models are immutable after creation.
 
 ## ServiceConfiguration
 
-`processpype.core.configuration.models.ServiceConfiguration`
+`processpype.config.models.ServiceConfiguration`
 
 ```python
 class ServiceConfiguration(ConfigurationModel):
@@ -32,131 +30,152 @@ Base configuration for all services. Extend this class to add service-specific f
 | `enabled` | `bool` | `True` | Whether the service participates in `start_enabled_services()` |
 | `autostart` | `bool` | `False` | Schedule `start()` automatically after `configure()` |
 
-## ApplicationConfiguration
+## ProcessPypeConfig
 
-`processpype.core.configuration.models.ApplicationConfiguration`
+`processpype.config.models.ProcessPypeConfig`
+
+The root configuration model. Mirrors the YAML structure exactly.
 
 ```python
-class ApplicationConfiguration(ConfigurationModel):
-    title: str = "ProcessPype"
-    version: str = "0.1.0"
-    host: str = "0.0.0.0"
-    port: int = 8000
-    debug: bool = False
-    environment: str = "development"
-    logfire_key: str | None = None
+class ProcessPypeConfig(ConfigurationModel):
+    app: AppConfig = AppConfig()
+    server: ServerConfig = ServerConfig()
+    observability: ObservabilityConfig = ObservabilityConfig()
     services: dict[str, ServiceConfiguration] = {}
-    api_prefix: str = ""
-    closing_timeout_seconds: int = 60
-    logfire: LogfireConfiguration | None = None
 ```
+
+### AppConfig
+
+`processpype.config.models.AppConfig`
+
+Application identity and environment settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `title` | `str` | `"ProcessPype"` | API title (shown in OpenAPI docs) |
 | `version` | `str` | `"0.1.0"` | API version |
-| `host` | `str` | `"0.0.0.0"` | Uvicorn bind host |
-| `port` | `int` | `8000` | Uvicorn bind port |
+| `environment` | `str` | `"development"` | Environment name |
 | `debug` | `bool` | `False` | Enable debug logging |
-| `environment` | `str` | `"development"` | Environment name for Logfire |
-| `logfire_key` | `str \| None` | `None` | Logfire API token; enables Logfire if set |
-| `services` | `dict[str, ServiceConfiguration]` | `{}` | Per-service configuration |
-| `api_prefix` | `str` | `""` | URL prefix for all routes |
-| `closing_timeout_seconds` | `int` | `60` | Max seconds to wait for services to stop |
-| `logfire` | `LogfireConfiguration \| None` | `None` | Detailed Logfire settings |
+| `timezone` | `str` | `"UTC"` | Application timezone |
 
-`api_prefix` is validated to always start with `/` if non-empty.
+### ServerConfig
 
-## LogfireConfiguration
+`processpype.config.models.ServerConfig`
 
-`processpype.core.configuration.models.LogfireConfiguration`
+FastAPI / Uvicorn server settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `key` | `str \| None` | `None` | Logfire API key |
-| `environment` | `str` | `"development"` | Environment name |
-| `app_name` | `str` | `"ProcessPype"` | Application name |
-| `enabled` | `bool` | `True` | Whether Logfire is enabled |
-| `enable_logs` | `bool` | `True` | Whether to enable log forwarding |
+| `host` | `str` | `"0.0.0.0"` | Uvicorn bind host |
+| `port` | `int` | `8000` | Uvicorn bind port |
+| `api_prefix` | `str` | `""` | URL prefix for all routes |
+| `closing_timeout_seconds` | `int` | `60` | Max seconds to wait for services to stop |
 
-## ConfigurationManager
+`api_prefix` is validated to always start with `/` if non-empty.
 
-`processpype.core.configuration.manager.ConfigurationManager`
+### ObservabilityConfig
 
-Orchestrates configuration loading from multiple providers.
+`processpype.config.models.ObservabilityConfig`
 
-### Class Method: `load_application_config`
+Combined logging and tracing configuration.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `logging` | `LoggingConfig` | `LoggingConfig()` | Logging subsystem settings |
+| `tracing` | `TracingConfig` | `TracingConfig()` | Tracing subsystem settings |
+
+### LoggingConfig
+
+`processpype.config.models.LoggingConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `True` | When `False`, no logging handlers are installed |
+| `level` | `str` | `"INFO"` | Root log level |
+| `format` | `str` | `"color"` | Default format: `text`, `color`, or `json` |
+| `loggers` | `dict[str, str]` | `{}` | Per-logger level overrides (e.g. `{"noisy.lib": "WARNING"}`) |
+| `custom_levels` | `dict[str, int]` | `{}` | Custom log level name to numeric value |
+| `handlers` | `dict[str, dict]` | `{}` | Additional dictConfig-style handler definitions |
+| `redaction` | `RedactionConfig` | `RedactionConfig()` | Secret redaction settings |
+| `context` | `ContextConfig` | `ContextConfig()` | Async context injection settings |
+
+### TracingConfig
+
+`processpype.config.models.TracingConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `False` | Enable distributed tracing |
+| `backend` | `str` | `"console"` | Tracing backend: `logfire`, `otlp_grpc`, `otlp_http`, `console` |
+| `service_name` | `str` | `""` | OTEL service name |
+| `endpoint` | `str` | `""` | OTLP collector endpoint |
+| `logfire` | `LogfireConfig` | `LogfireConfig()` | Logfire-specific settings |
+| `sampling_rate` | `float` | `1.0` | Trace sampling rate (0.0--1.0) |
+| `instrumentation_name` | `str` | `"processpype"` | OpenTelemetry instrumentation scope name |
+| `instrumentation_version` | `str` | `"1.0.0"` | OpenTelemetry instrumentation scope version |
+
+### LogfireConfig
+
+`processpype.config.models.LogfireConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `token` | `str` | `""` | Logfire API token |
+| `environment` | `str` | `""` | Logfire environment tag |
+
+### Example YAML
+
+```yaml
+app:
+  title: "My App"
+  version: "1.0.0"
+  environment: production
+  debug: false
+  timezone: UTC
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  api_prefix: /api/v1
+
+observability:
+  logging:
+    level: INFO
+    format: json
+  tracing:
+    enabled: true
+    backend: logfire
+    logfire:
+      token: ${LOGFIRE_TOKEN}
+
+services:
+  my_service:
+    enabled: true
+    autostart: true
+```
+
+## load_config
+
+`processpype.config.manager.load_config`
 
 ```python
-@classmethod
-async def load_application_config(
-    cls,
+async def load_config(
     config_file: str | None = None,
-    **kwargs: Any,
-) -> ApplicationConfiguration
+    **overrides: Any,
+) -> ProcessPypeConfig
 ```
 
-Load `ApplicationConfiguration` from a YAML file (optional) and keyword overrides.
+Load `ProcessPypeConfig` from a YAML file with optional keyword overrides.
 
-If no `config_file` is provided, the returned configuration is built solely from `kwargs`.
+If no `config_file` is provided, the returned configuration is built solely from `overrides` (plus defaults).
 
-If a file is provided, the manager adds a `FileProvider` and `EnvProvider`, initializes both, and returns the merged result as `ApplicationConfiguration`.
-
----
-
-### `add_provider`
-
-```python
-async def add_provider(self, provider: ConfigurationProvider) -> None
-```
-
-Add a configuration provider. If the manager is already initialized, the new provider is loaded immediately and merged.
-
----
-
-### `initialize`
-
-```python
-async def initialize(self) -> None
-```
-
-Load all registered providers. Providers are loaded in reverse registration order, so the first-added provider wins (last writer loses). Idempotent.
-
----
-
-### `get`
-
-```python
-def get(self, key: str, default: Any = None) -> Any
-```
-
-Get a value from the merged configuration dictionary.
-
----
-
-### `get_model`
-
-```python
-def get_model(self, model: type[ApplicationConfiguration]) -> ApplicationConfiguration
-```
-
-Validate and return the merged configuration as a Pydantic model.
-
----
-
-### `set`
-
-```python
-async def set(self, key: str, value: Any, save: bool = True) -> None
-```
-
-Set a configuration value. If `save=True`, the value is written to all providers that support saving.
+If a file is provided, the function reads it via `FileProvider` (which performs `${ENV_VAR}` token replacement), then shallow-merges any `overrides` on top.
 
 ## Configuration Providers
 
 ### ConfigurationProvider (abstract)
 
-`processpype.core.configuration.providers.ConfigurationProvider`
+`processpype.config.providers.ConfigurationProvider`
 
 ```python
 class ConfigurationProvider(ABC):
@@ -174,15 +193,21 @@ class FileProvider(ConfigurationProvider):
     def __init__(self, path: str | Path) -> None
 ```
 
-Reads and writes YAML files. Returns an empty dict if the file does not exist.
+Reads and writes YAML files. Returns an empty dict if the file does not exist. Performs `${ENV_VAR}` and `${ENV_VAR:-default}` token replacement on load.
 
-### EnvProvider
+### Environment Variable Tokens
 
-```python
-class EnvProvider(ConfigurationProvider):
-    def __init__(self, prefix: str = "PROCESSPYPE_") -> None
+Instead of a dedicated `EnvProvider`, YAML values can reference environment variables using `${ENV_VAR}` syntax:
+
+- `${VAR}` --- replaced with `os.environ["VAR"]`, raises if not set
+- `${VAR:-default}` --- replaced with `os.environ.get("VAR", "default")`
+
+Example:
+
+```yaml
+observability:
+  tracing:
+    logfire:
+      token: ${LOGFIRE_TOKEN}
+    endpoint: ${OTEL_ENDPOINT:-http://localhost:4317}
 ```
-
-Reads environment variables with the given prefix. Double underscores (`__`) are split into nested dictionary keys. `save()` is a no-op.
-
-Example: `PROCESSPYPE_SERVICES__COUNTER__ENABLED=true` sets `config["services"]["counter"]["enabled"] = "true"`.

@@ -1,6 +1,6 @@
 # BaseService API Reference
 
-`processpype.core.service.service.Service`
+`processpype.service.base.Service`
 
 ## Class
 
@@ -27,7 +27,7 @@ def __init__(self, name: str | None = None) -> None
 
 **Parameters:**
 
-- `name` --- Optional service name. Defaults to the class name lowercased with `service` suffix stripped.
+- `name` --- Optional service name. Defaults to the class name lowercased with `service` suffix stripped (via `derive_service_name()`).
 
 Initializes status as `ServiceState.INITIALIZED`, calls `create_manager()` and `create_router()`.
 

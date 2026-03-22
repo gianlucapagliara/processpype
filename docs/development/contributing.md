@@ -67,23 +67,27 @@ processpype/
 │   ├── __init__.py
 │   ├── main.py                    # Default ASGI entry point
 │   ├── creator.py                 # ApplicationCreator helper
-│   ├── core/
-│   │   ├── application.py         # Application class
-│   │   ├── manager.py             # ApplicationManager
+│   ├── application.py             # Core Application class
+│   ├── app_manager.py             # ApplicationManager
+│   ├── config/
+│   │   ├── models.py              # ProcessPypeConfig, AppConfig, ServerConfig, etc.
+│   │   ├── manager.py             # load_config() function
+│   │   └── providers.py           # ConfigurationProvider, FileProvider
+│   ├── service/
+│   │   ├── base.py                # Service abstract base class
+│   │   ├── manager.py             # ServiceManager abstract base class
 │   │   ├── models.py              # ServiceState, ServiceStatus, ApplicationStatus
-│   │   ├── router.py              # ApplicationRouter
-│   │   ├── system.py              # Timezone setup
-│   │   ├── logfire.py             # Logging and Logfire integration
-│   │   ├── configuration/
-│   │   │   ├── models.py          # ConfigurationModel, ServiceConfiguration, ApplicationConfiguration
-│   │   │   ├── manager.py         # ConfigurationManager
-│   │   │   └── providers.py       # FileProvider, EnvProvider
-│   │   └── service/
-│   │       ├── service.py         # Service abstract base class
-│   │       ├── manager.py         # ServiceManager abstract base class
-│   │       └── router.py          # ServiceRouter
-│   ├── services/
-│   │   └── __init__.py            # Service registry (register_service_class, get_service_class)
+│   │   ├── naming.py              # derive_service_name()
+│   │   └── registry.py            # register_service_class, get_service_class
+│   ├── server/
+│   │   ├── app_router.py          # ApplicationRouter
+│   │   └── service_router.py      # ServiceRouter
+│   ├── observability/
+│   │   ├── setup.py               # init_observability()
+│   │   ├── logging/               # Logging setup, formatters, filters
+│   │   └── tracing/               # OpenTelemetry tracing setup
+│   ├── environment/
+│   │   └── system.py              # setup_environment()
 │   └── examples/
 │       ├── __init__.py
 │       ├── hello.py               # HelloService — minimal, no config
@@ -120,10 +124,10 @@ Example skeleton:
 
 ```python
 from pydantic import Field
-from processpype.core.configuration.models import ServiceConfiguration
-from processpype.core.service.manager import ServiceManager
-from processpype.core.service.service import Service
-from processpype.services import register_service_class
+from processpype.config.models import ServiceConfiguration
+from processpype.service.manager import ServiceManager
+from processpype.service.base import Service
+from processpype.service.registry import register_service_class
 
 
 class MyServiceConfiguration(ServiceConfiguration):

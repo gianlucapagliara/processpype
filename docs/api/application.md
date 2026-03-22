@@ -1,6 +1,6 @@
 # Application API Reference
 
-`processpype.core.application.Application`
+`processpype.application.Application`
 
 ## Class
 
@@ -12,14 +12,14 @@ class Application:
 ## Constructor
 
 ```python
-def __init__(self, config: ApplicationConfiguration) -> None
+def __init__(self, config: ProcessPypeConfig) -> None
 ```
 
 Creates an `Application` instance and stores it as the singleton (`Application._instance`). Immediately creates the FastAPI instance.
 
 **Parameters:**
 
-- `config` (`ApplicationConfiguration`) --- Application configuration
+- `config` (`ProcessPypeConfig`) --- Application configuration
 
 ## Class Methods
 
@@ -34,7 +34,7 @@ async def create(
 ) -> "Application"
 ```
 
-Create an application instance by loading configuration from a YAML file and/or keyword arguments.
+Create an application instance by loading configuration from a YAML file and/or keyword arguments. Uses `load_config()` internally.
 
 **Parameters:**
 
@@ -71,7 +71,7 @@ The underlying FastAPI application instance.
 
 ```python
 @property
-def config(self) -> ApplicationConfiguration
+def config(self) -> ProcessPypeConfig
 ```
 
 The application configuration.
@@ -96,7 +96,7 @@ def is_initialized(self) -> bool
 def logger(self) -> logging.Logger
 ```
 
-Logger named `processpype.services.app`.
+Logger named `processpype.app`.
 
 ## Lifecycle Methods
 
@@ -106,11 +106,11 @@ Logger named `processpype.services.app`.
 async def initialize(self) -> None
 ```
 
-Initialize the application. Idempotent — safe to call multiple times.
+Initialize the application. Idempotent --- safe to call multiple times.
 
 Sets up:
-1. System timezone (UTC)
-2. Logfire integration (if `logfire_key` is configured)
+1. System environment (timezone via `setup_environment()`)
+2. Observability (logging + tracing via `init_observability()`)
 3. `ApplicationManager` (service registry)
 4. `ApplicationRouter` (REST endpoints)
 
@@ -250,15 +250,12 @@ class ApplicationCreator:
     is_shutting_down: bool
     app: Application | None
 
-    @staticmethod
-    def get_env_config() -> dict[str, Any]: ...
-
     @classmethod
     def get_application(
         cls,
-        config: ApplicationConfiguration | None = None,
+        config: ProcessPypeConfig | None = None,
         application_class: type[Application] = Application,
     ) -> Application: ...
 ```
 
-`get_env_config()` reads `APP_TITLE`, `APP_HOST`, `APP_PORT`, `APP_DEBUG`, `APP_ENV`, `LOGFIRE_KEY`, and `API_PREFIX` from environment variables.
+`get_application()` creates or returns the singleton `Application` instance, sets up signal handlers for graceful shutdown, and configures the FastAPI lifespan to initialize the app and start enabled services.

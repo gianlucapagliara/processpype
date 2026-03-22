@@ -1,10 +1,10 @@
 # Router API Reference
 
-`processpype.core.router` and `processpype.core.service.router`
+`processpype.server.app_router` and `processpype.server.service_router`
 
 ## ApplicationRouter
 
-`processpype.core.router.ApplicationRouter`
+`processpype.server.app_router.ApplicationRouter`
 
 ```python
 class ApplicationRouter(APIRouter):
@@ -20,7 +20,7 @@ def __init__(
     *,
     get_version: Callable[[], str],
     get_state: Callable[[], ServiceState],
-    get_services: Callable[[], dict[str, Service]],
+    get_services: Callable[[], dict[str, Any]],
 ) -> None
 ```
 
@@ -75,7 +75,7 @@ Stops and removes the named service. Returns:
 
 ## ServiceRouter
 
-`processpype.core.service.router.ServiceRouter`
+`processpype.server.service_router.ServiceRouter`
 
 ```python
 class ServiceRouter(APIRouter):

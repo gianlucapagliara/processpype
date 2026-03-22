@@ -13,8 +13,9 @@ A modular application framework for building service-oriented Python application
 - **Service Framework** --- Define services with a clear lifecycle and automatic REST API endpoints
 - **FastAPI Integration** --- Each service automatically exposes HTTP endpoints for status, start, stop, and configuration
 - **Configuration Management** --- YAML file, environment variable, and programmatic configuration with Pydantic models
+- **Pure Framework** --- No built-in services — provides the infrastructure for building your own with clear patterns and examples
 - **REST API** --- Application-level endpoints for service discovery, registration, and lifecycle management
-- **Structured Logging** --- Integrated Logfire support for production-grade observability
+- **Observability** --- Structured logging with multiple formatters (JSON, color, text), log redaction, and OpenTelemetry tracing support (Logfire, OTLP gRPC/HTTP, console)
 - **Type Safe** --- Fully typed with MyPy strict mode compliance
 - **Well Tested** --- Comprehensive test suite with high coverage
 
@@ -22,13 +23,15 @@ A modular application framework for building service-oriented Python application
 
 ```python
 import asyncio
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype import Application, ProcessPypeConfig
 from processpype.examples import HelloService
 
 
 async def main() -> None:
-    config = ApplicationConfiguration(title="My App", port=8080)
+    config = ProcessPypeConfig(
+        app={"title": "My App"},
+        server={"port": 8080},
+    )
     async with Application(config) as app:
         await app.initialize()
         service = app.register_service(HelloService)
@@ -43,12 +46,13 @@ asyncio.run(main())
 
 ProcessPype is organized around three core abstractions:
 
-- **Application** orchestrates the FastAPI server, configuration loading, and service lifecycle. Use `Application.create()` for YAML-based setup or instantiate directly with `ApplicationConfiguration`.
+- **Application** orchestrates the FastAPI server, configuration loading, and service lifecycle. Instantiate directly with `ProcessPypeConfig`.
 - **Service** is the unit of work. Each service has a manager (business logic) and a router (HTTP API). Implement `create_manager()` to define what your service does.
 - **ServiceManager** implements the actual `start()` and `stop()` logic for a service.
 
 ```
 Application
+├── ProcessPypeConfig     ── hierarchical app/server/logging config
 ├── ApplicationManager    ── service registry and lifecycle
 ├── ApplicationRouter     ── REST API for the application
 └── Service (per service)

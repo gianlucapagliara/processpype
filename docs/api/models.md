@@ -1,6 +1,6 @@
 # Models API Reference
 
-`processpype.core.models`
+`processpype.service.models`
 
 ## ServiceState
 
@@ -23,7 +23,7 @@ A `StrEnum` representing every state a service or application can be in.
 Because `ServiceState` is a `StrEnum`, its values can be compared with plain strings:
 
 ```python
-from processpype.core.models import ServiceState
+from processpype.service.models import ServiceState
 
 assert ServiceState.RUNNING == "running"
 state = ServiceState.RUNNING
@@ -48,7 +48,7 @@ Tracks the current state and metadata of a service instance. Returned by `servic
 ### Example
 
 ```python
-from processpype.core.models import ServiceStatus, ServiceState
+from processpype.service.models import ServiceStatus, ServiceState
 
 status = ServiceStatus(state=ServiceState.RUNNING)
 print(status.state)         # ServiceState.RUNNING
@@ -77,10 +77,10 @@ The response model for the `GET /` application status endpoint.
 ### Example
 
 ```python
-from processpype.core.models import ApplicationStatus, ServiceState, ServiceStatus
+from processpype.service.models import ApplicationStatus, ServiceState, ServiceStatus
 
 app_status = ApplicationStatus(
-    version="1.1.6",
+    version="2.0.0",
     state=ServiceState.RUNNING,
     services={
         "counter": ServiceStatus(state=ServiceState.RUNNING, is_configured=True),
@@ -93,7 +93,7 @@ Response JSON from `GET /`:
 
 ```json
 {
-  "version": "1.1.6",
+  "version": "2.0.0",
   "state": "running",
   "services": {
     "counter": {
@@ -108,7 +108,7 @@ Response JSON from `GET /`:
 
 ## ServiceRegistrationRequest
 
-`processpype.core.router.ServiceRegistrationRequest`
+`processpype.server.app_router.ServiceRegistrationRequest`
 
 Request body for `POST /services/register`:
 
@@ -116,15 +116,3 @@ Request body for `POST /services/register`:
 |-------|------|---------|-------------|
 | `service_name` | `str` | (required) | Registry key for the service class |
 | `instance_name` | `str \| None` | `None` | Optional custom instance name |
-
-## ServiceLogContext
-
-`processpype.core.logfire.ServiceLogContext`
-
-Structured context model for log entries:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `service_name` | `str` | Name of the service generating the log |
-| `service_state` | `str` | Current state string |
-| `metadata` | `dict[str, Any]` | Additional context |

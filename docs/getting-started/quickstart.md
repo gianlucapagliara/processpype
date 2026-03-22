@@ -4,19 +4,15 @@ This guide walks through the basics of ProcessPype: creating an application, reg
 
 ## Creating an Application
 
-An `Application` is the top-level orchestrator. Create one with an `ApplicationConfiguration`:
+An `Application` is the top-level orchestrator. Create one with a `ProcessPypeConfig`:
 
 ```python
 import asyncio
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype import Application, ProcessPypeConfig
 
-config = ApplicationConfiguration(
-    title="My Application",
-    host="0.0.0.0",
-    port=8080,
-    debug=True,
-    environment="development",
+config = ProcessPypeConfig(
+    app={"title": "My Application", "debug": True, "environment": "development"},
+    server={"host": "0.0.0.0", "port": 8080},
 )
 
 app = Application(config)
@@ -38,13 +34,12 @@ The simplest possible service. No configuration needed.
 
 ```python
 import asyncio
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype import Application, ProcessPypeConfig
 from processpype.examples import HelloService
 
 
 async def main() -> None:
-    config = ApplicationConfiguration(title="My App", port=8080)
+    config = ProcessPypeConfig(app={"title": "My App"}, server={"port": 8080})
     app = Application(config)
     await app.initialize()
 
@@ -91,9 +86,7 @@ await app.start_service(service.name)
 A service requires two classes: a manager (business logic) and the service itself.
 
 ```python
-from processpype.core.service.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.configuration.models import ServiceConfiguration
+from processpype import Service, ServiceManager, ServiceConfiguration
 
 
 class MyManager(ServiceManager):
@@ -138,16 +131,14 @@ Use `app.start()` to launch the Uvicorn server:
 
 ```python
 import asyncio
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
+from processpype import Application, ProcessPypeConfig
 from processpype.examples import CounterService, TickerService
 
 
 async def main() -> None:
-    config = ApplicationConfiguration(
-        title="My Application",
-        host="0.0.0.0",
-        port=8080,
+    config = ProcessPypeConfig(
+        app={"title": "My Application"},
+        server={"host": "0.0.0.0", "port": 8080},
     )
     app = Application(config)
     await app.initialize()
@@ -175,12 +166,20 @@ The application exposes these endpoints automatically:
 Create a `config.yaml` file to configure the application and services:
 
 ```yaml
-title: My Application
-host: 0.0.0.0
-port: 8080
-debug: false
-environment: production
-
+app:
+  title: My Application
+  environment: production
+  debug: false
+server:
+  host: 0.0.0.0
+  port: 8080
+observability:
+  logging:
+    level: INFO
+    format: json
+  tracing:
+    enabled: true
+    backend: logfire
 services:
   counter:
     enabled: true

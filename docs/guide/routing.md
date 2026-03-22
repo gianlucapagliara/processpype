@@ -157,8 +157,8 @@ curl -X POST http://localhost:8000/services/ticker/configure_and_start \
 Add custom endpoints to a service by overriding `create_router()`. The `CounterService` example demonstrates this pattern with its `CounterRouter`:
 
 ```python
-from processpype.core.service.router import ServiceRouter
-from processpype.core.service.service import Service
+from processpype.server.service_router import ServiceRouter
+from processpype.service.base import Service
 
 
 class MyService(Service):
@@ -175,16 +175,19 @@ class MyService(Service):
 Or create an entirely custom router subclass (as `CounterRouter` does):
 
 ```python
+from processpype.server.service_router import ServiceRouter
+
+
 class MyRouter(ServiceRouter):
-    def __init__(self, name: str, get_status, get_data, **kwargs):
-        self._get_data = get_data
-        super().__init__(name=name, get_status=get_status, **kwargs)
+    def __init__(self, name: str, get_manager, **kwargs):
+        super().__init__(name=name, **kwargs)
+        self._get_manager = get_manager
         self._setup_custom_routes()
 
     def _setup_custom_routes(self) -> None:
         @self.get("/data")
         async def get_data() -> dict:
-            return self._get_data()
+            return {"value": self._get_manager().value}
 ```
 
 See `processpype/examples/counter.py` for a complete working example of a custom router.
@@ -194,7 +197,9 @@ See `processpype/examples/counter.py` for a complete working example of a custom
 All routes are mounted under `api_prefix` when it is set:
 
 ```python
-config = ApplicationConfiguration(api_prefix="/api/v1")
+from processpype import ProcessPypeConfig
+
+config = ProcessPypeConfig(server={"api_prefix": "/api/v1"})
 ```
 
 With this prefix:

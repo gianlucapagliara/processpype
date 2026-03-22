@@ -7,18 +7,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://gianlucapagliara.github.io/processpype/)
 
-A modular application framework for building service-oriented Python applications with built-in FastAPI integration, structured logging, and pluggable services.
+A modular application framework for building service-oriented Python applications with FastAPI integration, structured logging, and a clear service lifecycle.
 
 ## Features
 
-- 🏗️ **Service Framework**: Define services with a clear lifecycle (initialize, configure, start, stop) and automatic REST API endpoints
-- ⚡ **FastAPI Integration**: Each service automatically gets HTTP endpoints for status, start, stop, and configuration
-- 🔧 **Configuration Management**: YAML file, environment variable, and programmatic configuration with Pydantic models
-- 📦 **Pluggable Services**: Built-in clock, database, storage, notification, and monitoring services — add your own with a single class
-- 🌐 **REST API**: Application-level endpoints for service discovery, registration, and lifecycle management
-- 📊 **Structured Logging**: Integrated Logfire support for production-grade observability
-- 🔒 **Type Safe**: Fully typed with MyPy strict mode
-- 🧪 **Well Tested**: Comprehensive test suite with high coverage
+- **Service Framework**: Define services with a clear lifecycle (initialize, configure, start, stop) and automatic REST API endpoints
+- **FastAPI Integration**: Each service automatically gets HTTP endpoints for status, start, stop, and configuration
+- **Configuration Management**: YAML file, environment variable, and programmatic configuration with Pydantic models
+- **Pure Framework**: No built-in services — provides the infrastructure for building your own with clear patterns and examples
+- **REST API**: Application-level endpoints for service discovery, registration, and lifecycle management
+- **Observability**: Structured logging with multiple formatters (JSON, color, text), log redaction, and OpenTelemetry tracing support (Logfire, OTLP gRPC/HTTP, console)
+- **Type Safe**: Fully typed with MyPy strict mode
+- **Well Tested**: Comprehensive test suite with high coverage
 
 ## Installation
 
@@ -34,11 +34,7 @@ uv add processpype
 
 ```python
 import asyncio
-from processpype.core.application import Application
-from processpype.core.configuration.models import ApplicationConfiguration
-from processpype.core.service.service import Service
-from processpype.core.service.manager import ServiceManager
-from processpype.core.configuration.models import ServiceConfiguration
+from processpype import Application, ProcessPypeConfig, Service, ServiceManager, ServiceConfiguration
 
 
 class GreeterManager(ServiceManager):
@@ -60,7 +56,10 @@ class GreeterService(Service):
 
 
 async def main() -> None:
-    config = ApplicationConfiguration(title="Hello App", port=8080)
+    config = ProcessPypeConfig(
+        app={"title": "Hello App"},
+        server={"port": 8080},
+    )
     async with Application(config) as app:
         await app.initialize()
         service = app.register_service(GreeterService)
@@ -73,7 +72,7 @@ asyncio.run(main())
 ## Core Components
 
 - **Application**: Central orchestrator that manages the FastAPI server, configuration, and service lifecycle
-  - `Application.create(config_file)`: Load configuration from YAML and create an instance
+  - `Application(config)`: Create an instance with a `ProcessPypeConfig`
   - `app.register_service(ServiceClass)`: Register and wire a service into the application
   - `app.start_service(name)` / `app.stop_service(name)`: Lifecycle control
 
@@ -83,7 +82,7 @@ asyncio.run(main())
 
 - **ServiceManager**: Handles business logic for a service — implement `start()` and `stop()`
 
-- **Configuration**: Pydantic-validated models loaded from YAML files, environment variables, or kwargs
+- **Configuration**: Hierarchical `ProcessPypeConfig` with `app`, `server`, and `logging` sections — Pydantic-validated, loadable from YAML files, environment variables, or kwargs
 
 ## Documentation
 
