@@ -32,12 +32,17 @@ class TelegramCommunicator(Communicator):
     routed through the dispatcher's event publisher.
     """
 
+    MAX_QUEUE_SIZE = 1000
+    """Maximum number of queued messages before dropping new ones."""
+
     def __init__(self, name: str, config: TelegramCommunicatorConfig) -> None:
         super().__init__(name, config)
         self._telegram_config = config
         self._chats: dict[str, TelegramChatConfig] = dict(config.chats)
         self._bot: TelegramClient | None = None
-        self._msg_queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue()
+        self._msg_queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue(
+            maxsize=self.MAX_QUEUE_SIZE
+        )
         self._drain_task: asyncio.Task[None] | None = None
         self._listen_task: asyncio.Task[None] | None = None
 
@@ -95,7 +100,13 @@ class TelegramCommunicator(Communicator):
         lines = message.message.split("\n")
         chunks = _divide_chunks(lines, 30)
         for chunk in chunks:
-            self._msg_queue.put_nowait(("\n".join(chunk), message.label))
+            try:
+                self._msg_queue.put_nowait(("\n".join(chunk), message.label))
+            except asyncio.QueueFull:
+                logger.warning(
+                    "Telegram message queue full (%d), dropping message chunk",
+                    self.MAX_QUEUE_SIZE,
+                )
 
     # --- Internal ---
 

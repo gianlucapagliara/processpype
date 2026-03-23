@@ -82,8 +82,13 @@ class EmailCommunicator(Communicator):
             await self._smtp.send_message(msg)
         except (aiosmtplib.SMTPServerDisconnected, ConnectionError):
             logger.info("SMTP connection lost, reconnecting")
-            await self._reconnect()
-            await self._smtp.send_message(msg)
+            try:
+                await self._reconnect()
+                await self._smtp.send_message(msg)
+            except Exception:
+                logger.exception(
+                    "Email send failed after reconnect attempt, dropping message"
+                )
 
     async def _reconnect(self) -> None:
         """Reconnect to SMTP server."""
