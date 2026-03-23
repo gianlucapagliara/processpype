@@ -28,8 +28,18 @@ otlp = [
     "opentelemetry-exporter-otlp>=1.20",
     "processpype[tracing]",
 ]
+telegram = [
+    "telethon>=1.34",
+    "processpype[events]",
+]
+email = [
+    "aiosmtplib>=3.0",
+]
+aws = [
+    "boto3>=1.28",
+]
 full = [
-    "processpype[events,logfire]",
+    "processpype[events,logfire,telegram,email,aws]",
 ]
 
 [project.urls]

@@ -4,9 +4,9 @@ Defines the unified configuration tree loaded from a single YAML file.
 The Pydantic model hierarchy mirrors the YAML structure exactly.
 """
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator
 
 
 class ConfigurationModel(BaseModel):
@@ -141,6 +141,235 @@ class ObservabilityConfig(ConfigurationModel):
     tracing: TracingConfig = Field(default_factory=TracingConfig)
 
 
+# --- Communications ---
+
+
+class TelegramChatConfig(ConfigurationModel):
+    """Configuration for a single Telegram chat/channel destination."""
+
+    chat_id: str = Field(description="Chat/channel identifier")
+    topic_id: int | None = Field(default=None, description="Forum topic ID")
+    command_authorized: bool = Field(
+        default=False, description="Accept commands from this chat"
+    )
+    active: bool = Field(default=True, description="Whether this chat is active")
+
+    @field_validator("chat_id")
+    @classmethod
+    def validate_chat_id_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("chat_id cannot be empty")
+        return v
+
+
+class CommunicatorBackendConfig(ConfigurationModel):
+    """Base configuration for a communicator backend instance."""
+
+    type: str = Field(description="Backend type: telegram | email | custom")
+    enabled: bool = Field(default=True, description="Whether this backend is active")
+    labels: list[str] = Field(
+        default_factory=lambda: ["default"],
+        description="Labels this backend handles",
+    )
+
+    @field_validator("labels")
+    @classmethod
+    def validate_labels_not_empty(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("labels cannot be empty — at least one label is required")
+        return v
+
+
+class TelegramCommunicatorConfig(CommunicatorBackendConfig):
+    """Telegram-specific communicator settings."""
+
+    api_id: int = Field(description="Telegram API ID")
+    api_hash: str = Field(description="Telegram API hash")
+    token: str = Field(description="Bot token")
+    session_string: str = Field(default="", description="Session string for auth")
+    listen_to_commands: bool = Field(
+        default=False, description="Enable incoming message handling"
+    )
+    chats: dict[str, TelegramChatConfig] = Field(
+        default_factory=dict,
+        description="Chat configurations keyed by label",
+    )
+
+
+class EmailCommunicatorConfig(CommunicatorBackendConfig):
+    """Email-specific communicator settings (send-only)."""
+
+    host: str = Field(default="localhost", description="SMTP host")
+    port: int = Field(default=587, description="SMTP port")
+    username: str = Field(default="", description="SMTP username")
+    password: str = Field(default="", description="SMTP password")
+    from_address: str = Field(description="Sender email address")
+    use_tls: bool = Field(default=True, description="Use TLS")
+    start_tls: bool = Field(
+        default=False, description="Use STARTTLS after connecting (for port 587)"
+    )
+    default_recipients: list[str] = Field(
+        default_factory=list,
+        description="Default recipient addresses",
+    )
+
+
+def _communicator_backend_discriminator(v: Any) -> str:
+    if isinstance(v, dict):
+        typ = v.get("type")
+        if typ is None:
+            raise ValueError("Backend config must include a 'type' field")
+        return typ if typ in ("telegram", "email") else "base"
+    typ = getattr(v, "type", None)
+    if typ is None:
+        raise ValueError("Backend config must include a 'type' field")
+    return typ if typ in ("telegram", "email") else "base"
+
+
+CommunicatorBackendConfigType = (
+    Annotated[TelegramCommunicatorConfig, Tag("telegram")]
+    | Annotated[EmailCommunicatorConfig, Tag("email")]
+    | Annotated[CommunicatorBackendConfig, Tag("base")]
+)
+
+
+class CommunicationsConfig(ConfigurationModel):
+    """Top-level communications configuration."""
+
+    enabled: bool = Field(default=False, description="Enable communication system")
+    backends: dict[
+        str,
+        Annotated[
+            CommunicatorBackendConfigType,
+            Discriminator(_communicator_backend_discriminator),
+        ],
+    ] = Field(
+        default_factory=dict,
+        description="Named communicator backends",
+    )
+
+
+# --- Secrets ---
+
+
+class AWSBackendConfig(ConfigurationModel):
+    """AWS Secrets Manager backend configuration.
+
+    The ``prefix`` is transparently prepended to all secret names.  For
+    example, with ``prefix: "production/exchanges"`` a request for key
+    ``binance`` actually fetches ``production/exchanges/binance`` from AWS.
+    """
+
+    type: Literal["aws"] = "aws"
+    region_name: str = Field(default="", description="AWS region name")
+    profile_name: str = Field(default="", description="AWS profile name")
+    prefix: str = Field(
+        default="",
+        description="Prefix prepended to all secret names (e.g. 'production/exchanges')",
+    )
+
+
+class FileBackendConfig(ConfigurationModel):
+    """YAML file backend configuration."""
+
+    type: Literal["file"] = "file"
+    path: str = Field(default="", description="Path to YAML secrets file")
+    prefix: str = Field(
+        default="",
+        description="Prefix prepended to key lookups inside the YAML file",
+    )
+
+
+class DotenvBackendConfig(ConfigurationModel):
+    """Dotenv file backend configuration.
+
+    Reads key-value pairs from a ``.env`` file.
+    """
+
+    type: Literal["dotenv"] = "dotenv"
+    path: str = Field(default=".env", description="Path to the .env file")
+    prefix: str = Field(
+        default="",
+        description="Prefix prepended to key lookups in the .env file",
+    )
+
+
+class EnvBackendConfig(ConfigurationModel):
+    """Environment variables backend configuration."""
+
+    type: Literal["env"] = "env"
+    prefix: str = Field(
+        default="",
+        description="Prefix prepended to env var names (e.g. 'APP_')",
+    )
+
+
+def _secrets_backend_discriminator(value: Any) -> str:
+    if isinstance(value, dict):
+        return str(value.get("type", "env"))
+    return str(getattr(value, "type", "env"))
+
+
+BackendConfig = Annotated[
+    Annotated[AWSBackendConfig, Tag("aws")]
+    | Annotated[FileBackendConfig, Tag("file")]
+    | Annotated[DotenvBackendConfig, Tag("dotenv")]
+    | Annotated[EnvBackendConfig, Tag("env")],
+    Discriminator(_secrets_backend_discriminator),
+]
+
+
+class SecretsConfig(ConfigurationModel):
+    """Secrets subsystem configuration.
+
+    Example YAML::
+
+        secrets:
+          enabled: true
+          backends:
+            aws:
+              type: aws
+              region_name: eu-west-1
+              prefix: "production/myapp"
+            env:
+              type: env
+            dotenv:
+              type: dotenv
+              path: .env
+            local:
+              type: file
+              path: ./secrets.yaml
+          load:
+            - "aws:*"
+            - "env:API_KEY"
+            - "dotenv:DB_*"
+            - "local:*"
+          cache_enabled: true
+    """
+
+    enabled: bool = Field(default=False, description="Enable the secrets subsystem")
+    backends: dict[str, BackendConfig] = Field(
+        default_factory=dict, description="Named backend configurations"
+    )
+    load: list[str] = Field(
+        default_factory=list, description="Secret declarations: 'backend_name:pattern'"
+    )
+
+    @field_validator("load")
+    @classmethod
+    def validate_load_declarations(cls, v: list[str]) -> list[str]:
+        for decl in v:
+            if ":" not in decl:
+                raise ValueError(
+                    f"Invalid secret declaration '{decl}': must be 'backend_name:pattern'"
+                )
+        return v
+
+    cache_enabled: bool = Field(
+        default=True, description="Cache fetched secrets in memory"
+    )
+
+
 # --- Root ---
 
 
@@ -161,6 +390,18 @@ class ProcessPypeConfig(ConfigurationModel):
           tracing:
             enabled: true
             backend: logfire
+        secrets:
+          enabled: true
+          backends:
+            aws:
+              type: aws
+              region_name: eu-west-1
+              prefix: "production/myapp"
+            env:
+              type: env
+          load:
+            - "aws:*"
+            - "env:API_KEY"
         services:
           my_service:
             enabled: true
@@ -170,6 +411,8 @@ class ProcessPypeConfig(ConfigurationModel):
     app: AppConfig = Field(default_factory=AppConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+    secrets: SecretsConfig = Field(default_factory=SecretsConfig)
+    communications: CommunicationsConfig = Field(default_factory=CommunicationsConfig)
     services: dict[str, ServiceConfiguration] = Field(
         default_factory=dict, description="Per-service configurations"
     )

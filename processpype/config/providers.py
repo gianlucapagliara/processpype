@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 
-def _replace_env_tokens(value: Any) -> Any:
+def replace_env_tokens(value: Any) -> Any:
     """Recursively replace ${ENV_VAR} and ${ENV_VAR:-default} tokens in strings.
 
     Supports:
@@ -38,9 +38,9 @@ def _replace_env_tokens(value: Any) -> Any:
             r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:-(.*?))?\}", _replace_match, value
         )
     elif isinstance(value, dict):
-        return {k: _replace_env_tokens(v) for k, v in value.items()}
+        return {k: replace_env_tokens(v) for k, v in value.items()}
     elif isinstance(value, list):
-        return [_replace_env_tokens(item) for item in value]
+        return [replace_env_tokens(item) for item in value]
     return value
 
 
@@ -69,7 +69,7 @@ class FileProvider(ConfigurationProvider):
         with open(self.path) as f:
             raw = yaml.safe_load(f) or {}
 
-        result: dict[str, Any] = _replace_env_tokens(raw)
+        result: dict[str, Any] = replace_env_tokens(raw)
         return result
 
     async def save(self, config: dict[str, Any]) -> None:

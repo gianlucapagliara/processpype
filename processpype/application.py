@@ -3,7 +3,10 @@
 import asyncio
 import logging
 from types import TracebackType
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from processpype.secrets import SecretsManager
 
 import uvicorn
 from fastapi import FastAPI
@@ -24,7 +27,7 @@ class Application:
     1. Load ProcessPypeConfig from YAML
     2. Setup environment (timezone, project dir, run ID)
     3. Init observability (logging + tracing) — Phase 2
-    4. Init notifications — Phase 3
+    4. Init communications — Phase 3
     5. Create FastAPI server and wire routes
     6. Create ApplicationManager and register services
     """
@@ -36,6 +39,7 @@ class Application:
         self._initialized = False
         self._lock = asyncio.Lock()
         self._manager: ApplicationManager | None = None
+        self._secrets_manager: SecretsManager | None = None
         self._api = self._create_api()
         Application._instance = self
 
@@ -67,6 +71,10 @@ class Application:
     @property
     def logger(self) -> logging.Logger:
         return logging.getLogger("processpype.app")
+
+    @property
+    def secrets(self) -> "SecretsManager | None":
+        return self._secrets_manager
 
     # === Lifecycle ===
 
@@ -131,6 +139,11 @@ class Application:
                 self.logger.info(f"Waiting for {len(unstopped)} services to stop...")
             await asyncio.sleep(1)
 
+        # Stop communication backends
+        from processpype.communications.dispatcher import get_dispatcher
+
+        await get_dispatcher().stop_all()
+
         self._manager.set_state(ServiceState.STOPPED)
 
     async def __aenter__(self) -> "Application":
@@ -162,12 +175,19 @@ class Application:
             init_observability(self._config.observability)
             self.logger.info("Initializing application")
 
-            # 3. Notifications
-            # (Notification handlers are registered by consuming services,
-            #  not auto-initialized here. The config is available at
-            #  self._config.notifications for consumers to use.)
+            # 3. Secrets
+            if self._config.secrets.enabled:
+                from processpype.secrets import create_secrets_manager
 
-            # 4. Application manager + routes
+                self._secrets_manager = create_secrets_manager(self._config.secrets)
+                self.logger.info("Secrets manager initialized")
+
+            # 4. Communications
+            from processpype.communications.setup import init_communications
+
+            await init_communications(self._config.communications)
+
+            # 5. Application manager + routes
             self._manager = ApplicationManager(self.logger, self._config)
             self._setup_api_routes()
 
