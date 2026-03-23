@@ -418,3 +418,71 @@ async def test_stop_all_services_skips_non_running() -> None:
     # Service is INITIALIZED, not RUNNING — should be skipped
     await mgr.stop_all_services()
     assert not svc.stop_called
+
+
+async def test_register_service_with_raw_dict_config() -> None:
+    """Test that a raw dict in config.services is validated into ServiceConfiguration."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={"raw_svc": ServiceConfiguration(autostart=True)},
+    )
+    mgr = ApplicationManager(logger, config)
+    # Replace the validated config with a raw dict to trigger line 56
+    mgr._config.services["raw_svc"] = {"autostart": True, "enabled": True}  # type: ignore[assignment]
+    svc = mgr.register_service(MockService, name="raw_svc")
+    assert svc.configure_called
+
+
+async def test_start_enabled_services_disabled_via_raw_dict() -> None:
+    """Test that services disabled via a raw dict config are skipped (lines 110-111)."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={"dict_svc": ServiceConfiguration(enabled=False)},
+    )
+    mgr = ApplicationManager(logger, config)
+    svc = mgr.register_service(MockService, name="dict_svc")
+    # Replace with a raw dict to hit the isinstance(service_config, dict) branch
+    mgr._config.services["dict_svc"] = {"enabled": False}  # type: ignore[assignment]
+    await mgr.start_enabled_services()
+    assert not svc.start_called
+
+
+async def test_start_enabled_services_error_sets_error_state() -> None:
+    """Test that start_enabled_services catches errors and sets error state."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={},
+    )
+    mgr = ApplicationManager(logger, config)
+    svc = mgr.register_service(MockService, name="fail_svc")
+    # Mark as configured so it passes the check and reaches start()
+    svc.status.is_configured = True
+    # Make start() raise
+    svc.manager.start = MagicMock(side_effect=Exception("boom"))  # type: ignore[method-assign]
+    await mgr.start_enabled_services()
+    assert svc.status.state == ServiceState.ERROR
+
+
+async def test_stop_all_services_error_sets_error_state() -> None:
+    """Test that stop_all_services catches errors and sets error state."""
+    logger = logging.getLogger("test")
+    config = ProcessPypeConfig(
+        app=AppConfig(title="T", version="1.0.0", environment="testing"),
+        server=ServerConfig(host="localhost", port=8080),
+        services={},
+    )
+    mgr = ApplicationManager(logger, config)
+    svc = mgr.register_service(MockService, name="stop_fail_svc")
+    svc.status.is_configured = True
+    await mgr.start_service("stop_fail_svc")
+    assert svc.status.state == ServiceState.RUNNING
+    # Make stop() raise
+    svc.manager.stop = MagicMock(side_effect=Exception("stop boom"))  # type: ignore[method-assign]
+    await mgr.stop_all_services()
+    assert svc.status.state == ServiceState.ERROR

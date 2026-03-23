@@ -230,3 +230,120 @@ async def test_application_error_handling(
         # The manager state is set to ERROR in the exception handler
         # but then set back to STOPPED in the finally block
         assert app._manager.state == ServiceState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_get_instance(app_config: ProcessPypeConfig) -> None:
+    """Test get_instance returns the singleton."""
+    app = Application(app_config)
+    assert Application.get_instance() is app
+
+
+@pytest.mark.asyncio
+async def test_secrets_property(app_config: ProcessPypeConfig) -> None:
+    """Test secrets property returns None when not initialized."""
+    app = Application(app_config)
+    assert app.secrets is None
+
+
+@pytest.mark.asyncio
+async def test_logger_property(app_config: ProcessPypeConfig) -> None:
+    """Test logger property returns a Logger."""
+    import logging
+
+    app = Application(app_config)
+    assert isinstance(app.logger, logging.Logger)
+
+
+@pytest.mark.asyncio
+async def test_get_service_without_manager(app_config: ProcessPypeConfig) -> None:
+    """Test get_service returns None when manager not initialized."""
+    app = Application(app_config)
+    assert app.get_service("any") is None
+
+
+@pytest.mark.asyncio
+async def test_get_services_by_type_without_manager(
+    app_config: ProcessPypeConfig,
+) -> None:
+    """Test get_services_by_type returns empty list when no manager."""
+    app = Application(app_config)
+    assert app.get_services_by_type(MockService) == []
+
+
+@pytest.mark.asyncio
+async def test_start_service_before_init(app_config: ProcessPypeConfig) -> None:
+    """Test start_service raises when not initialized."""
+    app = Application(app_config)
+    with pytest.raises(RuntimeError, match="must be initialized"):
+        await app.start_service("any")
+
+
+@pytest.mark.asyncio
+async def test_stop_service_without_manager(app_config: ProcessPypeConfig) -> None:
+    """Test stop_service returns early when no manager."""
+    app = Application(app_config)
+    await app.stop_service("any")  # should not raise
+
+
+@pytest.mark.asyncio
+async def test_register_service_by_name(app: Application) -> None:
+    """Test register_service_by_name with a valid service."""
+    await app.initialize()
+
+    with patch(
+        "processpype.service.registry.get_service_class", return_value=MockService
+    ):
+        service = app.register_service_by_name("mock_service", "my_instance")
+        assert service is not None
+        assert isinstance(service, MockService)
+
+
+@pytest.mark.asyncio
+async def test_register_service_by_name_not_found(app: Application) -> None:
+    """Test register_service_by_name returns None for unknown service."""
+    await app.initialize()
+
+    with patch("processpype.service.registry.get_service_class", return_value=None):
+        result = app.register_service_by_name("nonexistent")
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_register_service_by_name_import_error(app: Application) -> None:
+    """Test register_service_by_name handles ImportError."""
+    await app.initialize()
+
+    with patch(
+        "processpype.service.registry.get_service_class", side_effect=ImportError
+    ):
+        result = app.register_service_by_name("broken")
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_deregister_service(app: Application) -> None:
+    """Test deregister_service removes a service."""
+    await app.initialize()
+    app.register_service(MockService, name="to_remove")
+    await app.start_service("to_remove")
+
+    result = await app.deregister_service("to_remove")
+    assert result is True
+    assert app.get_service("to_remove") is None
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_not_found(app: Application) -> None:
+    """Test deregister_service raises for unknown service."""
+    await app.initialize()
+    with pytest.raises(ValueError, match="not found"):
+        await app.deregister_service("ghost")
+
+
+@pytest.mark.asyncio
+async def test_deregister_service_before_init(app_config: ProcessPypeConfig) -> None:
+    """Test deregister_service raises when not initialized."""
+    app = Application(app_config)
+    with pytest.raises(RuntimeError, match="must be initialized"):
+        await app.deregister_service("any")

@@ -3,6 +3,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -185,3 +186,158 @@ class TestDotenvProvider:
         provider = DotenvProvider(env_file)
         with pytest.raises(SecretNotFoundError, match="not found"):
             provider.get_secret("MISSING")
+
+
+class TestFileSecretsProviderEdgeCases:
+    """Additional edge-case tests for FileSecretsProvider."""
+
+    def test_get_non_string_non_dict_returns_str(self, tmp_path: Path) -> None:
+        """Line 93: value that is neither str nor dict is coerced to str."""
+        secrets_file = tmp_path / "secrets.yaml"
+        secrets_file.write_text(yaml.safe_dump({"items": [1, 2, 3]}))
+        provider = FileSecretsProvider(secrets_file)
+        result = provider.get_secret("items")
+        assert result == "[1, 2, 3]"
+
+
+class TestAWSSecretsProvider:
+    """Tests for AWSSecretsProvider with mocked boto3."""
+
+    def _make_provider(
+        self, mock_client: Any, region: str = "us-east-1", profile: str = ""
+    ) -> Any:
+        from processpype.secrets.providers import AWSSecretsProvider
+
+        provider = AWSSecretsProvider(region_name=region, profile_name=profile)
+        provider._client = mock_client  # inject mock, skip real boto3
+        return provider
+
+    def test_init_stores_params(self) -> None:
+        from processpype.secrets.providers import AWSSecretsProvider
+
+        p = AWSSecretsProvider(region_name="eu-west-1", profile_name="dev")
+        assert p._region_name == "eu-west-1"
+        assert p._profile_name == "dev"
+
+    def test_init_empty_strings_become_none(self) -> None:
+        from processpype.secrets.providers import AWSSecretsProvider
+
+        p = AWSSecretsProvider(region_name="", profile_name="")
+        assert p._region_name is None
+        assert p._profile_name is None
+
+    def test_get_client_missing_boto3(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_get_client raises SecretsBackendError when boto3 is not installed."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+            if name == "boto3":
+                raise ImportError("no boto3")
+            return real_import(name, *args, **kwargs)
+
+        from processpype.secrets.providers import AWSSecretsProvider
+
+        provider = AWSSecretsProvider()
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        with pytest.raises(SecretsBackendError, match="boto3 is required"):
+            provider._get_client()
+
+    def test_get_secret_success(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_secret_value.return_value = {"SecretString": "my-secret-val"}
+        provider = self._make_provider(client)
+        assert provider.get_secret("my/key") == "my-secret-val"
+
+    def test_get_secret_json_parsed(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_secret_value.return_value = {
+            "SecretString": json.dumps({"user": "admin", "pass": "pw"})
+        }
+        provider = self._make_provider(client)
+        result = provider.get_secret("creds")
+        assert isinstance(result, dict)
+        assert result["user"] == "admin"
+
+    def test_get_secret_raw(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_secret_value.return_value = {"SecretString": json.dumps({"a": 1})}
+        provider = self._make_provider(client)
+        result = provider.get_secret("k", raw=True)
+        assert isinstance(result, str)
+
+    def test_get_secret_not_found(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        not_found = type("ResourceNotFoundException", (Exception,), {})
+        client.exceptions.ResourceNotFoundException = not_found
+        client.get_secret_value.side_effect = not_found("gone")
+        provider = self._make_provider(client)
+        with pytest.raises(SecretNotFoundError, match="not found"):
+            provider.get_secret("missing")
+
+    def test_get_secret_generic_error(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.exceptions.ResourceNotFoundException = type("RNF", (Exception,), {})
+        client.get_secret_value.side_effect = RuntimeError("aws down")
+        provider = self._make_provider(client)
+        with pytest.raises(SecretsBackendError, match="AWS Secrets Manager error"):
+            provider.get_secret("key")
+
+    def test_get_secret_binary_raises(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_secret_value.return_value = {"SecretBinary": b"data"}
+        provider = self._make_provider(client)
+        with pytest.raises(SecretsBackendError, match="binary"):
+            provider.get_secret("bin-secret")
+
+    def test_list_secrets_glob_pattern(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        paginator = MagicMock()
+        paginator.paginate.return_value = [
+            {"SecretList": [{"Name": "prod/a"}, {"Name": "prod/b"}, {"Name": "dev/c"}]}
+        ]
+        client.get_paginator.return_value = paginator
+        provider = self._make_provider(client)
+        result = provider.list_secrets("prod/*")
+        assert sorted(result) == ["prod/a", "prod/b"]
+        # Glob pattern → no server-side filter
+        paginator.paginate.assert_called_once_with()
+
+    def test_list_secrets_exact_pattern(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        paginator = MagicMock()
+        paginator.paginate.return_value = [{"SecretList": [{"Name": "exact-key"}]}]
+        client.get_paginator.return_value = paginator
+        provider = self._make_provider(client)
+        result = provider.list_secrets("exact-key")
+        assert result == ["exact-key"]
+        # Exact match → server-side filter
+        paginator.paginate.assert_called_once_with(
+            Filters=[{"Key": "name", "Values": ["exact-key"]}]
+        )
+
+    def test_list_secrets_error(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_paginator.side_effect = RuntimeError("api error")
+        provider = self._make_provider(client)
+        with pytest.raises(SecretsBackendError, match="AWS ListSecrets error"):
+            provider.list_secrets("*")

@@ -131,3 +131,79 @@ class TestFileProvider:
     def test_init_converts_str_to_path(self) -> None:
         provider = FileProvider("/some/path.yaml")
         assert isinstance(provider.path, Path)
+
+
+class TestResolveSecretTokens:
+    """Tests for the resolve_secret_tokens helper."""
+
+    def test_plain_string_unchanged(self) -> None:
+        from processpype.config.providers import resolve_secret_tokens
+
+        assert resolve_secret_tokens("hello", None) == "hello"
+
+    def test_non_string_passthrough(self) -> None:
+        from processpype.config.providers import resolve_secret_tokens
+
+        assert resolve_secret_tokens(42, None) == 42
+        assert resolve_secret_tokens(True, None) is True
+        assert resolve_secret_tokens(None, None) is None
+
+    def test_secret_token_replaced(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        sm.get.return_value = "resolved_value"
+        result = resolve_secret_tokens("${secret://aws:my_key}", sm)
+        assert result == "resolved_value"
+        sm.get.assert_called_once_with("aws:my_key")
+
+    def test_secret_token_dict_value_coerced(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        sm.get.return_value = {"user": "admin"}
+        result = resolve_secret_tokens("${secret://aws:creds}", sm)
+        assert result == "{'user': 'admin'}"
+
+    def test_dict_recursion(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        sm.get.return_value = "secret_val"
+        result = resolve_secret_tokens({"a": "${secret://env:key}", "b": "plain"}, sm)
+        assert result == {"a": "secret_val", "b": "plain"}
+
+    def test_list_recursion(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        sm.get.return_value = "x"
+        result = resolve_secret_tokens(["${secret://env:k}", "y"], sm)
+        assert result == ["x", "y"]
+
+    def test_embedded_token(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        sm.get.return_value = "s3cret"
+        result = resolve_secret_tokens("pw=${secret://env:pw}", sm)
+        assert result == "pw=s3cret"
+
+    def test_no_token_no_manager_call(self) -> None:
+        from unittest.mock import MagicMock
+
+        from processpype.config.providers import resolve_secret_tokens
+
+        sm = MagicMock()
+        resolve_secret_tokens("no tokens here", sm)
+        sm.get.assert_not_called()
