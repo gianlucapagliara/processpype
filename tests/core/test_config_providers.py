@@ -8,59 +8,58 @@ import yaml
 from processpype.config.providers import (
     ConfigurationProvider,
     FileProvider,
-    _replace_env_tokens,
+    replace_env_tokens,
 )
 
 
 class TestReplaceEnvTokens:
-    """Tests for the _replace_env_tokens helper."""
+    """Tests for the replace_env_tokens helper."""
 
     def test_plain_string_unchanged(self) -> None:
-        assert _replace_env_tokens("hello world") == "hello world"
+        assert replace_env_tokens("hello world") == "hello world"
 
     def test_non_string_passthrough(self) -> None:
-        assert _replace_env_tokens(42) == 42
-        assert _replace_env_tokens(True) is True
-        assert _replace_env_tokens(None) is None
+        assert replace_env_tokens(42) == 42
+        assert replace_env_tokens(True) is True
+        assert replace_env_tokens(None) is None
 
     def test_env_var_substitution(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEST_PP_VAR", "replaced")
-        assert _replace_env_tokens("${TEST_PP_VAR}") == "replaced"
+        assert replace_env_tokens("${TEST_PP_VAR}") == "replaced"
 
     def test_env_var_with_default_uses_env(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("TEST_PP_VAR", "from_env")
-        assert _replace_env_tokens("${TEST_PP_VAR:-fallback}") == "from_env"
+        assert replace_env_tokens("${TEST_PP_VAR:-fallback}") == "from_env"
 
     def test_env_var_with_default_uses_default(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("TEST_PP_MISSING", raising=False)
-        assert _replace_env_tokens("${TEST_PP_MISSING:-fallback}") == "fallback"
+        assert replace_env_tokens("${TEST_PP_MISSING:-fallback}") == "fallback"
 
     def test_env_var_missing_no_default_raises(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("TEST_PP_MISSING", raising=False)
         with pytest.raises(ValueError, match="not set and no default"):
-            _replace_env_tokens("${TEST_PP_MISSING}")
+            replace_env_tokens("${TEST_PP_MISSING}")
 
     def test_dict_recursion(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEST_PP_KEY", "val")
-        result = _replace_env_tokens({"a": "${TEST_PP_KEY}", "b": "plain"})
+        result = replace_env_tokens({"a": "${TEST_PP_KEY}", "b": "plain"})
         assert result == {"a": "val", "b": "plain"}
 
     def test_list_recursion(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEST_PP_ITEM", "x")
-        result = _replace_env_tokens(["${TEST_PP_ITEM}", "y"])
+        result = replace_env_tokens(["${TEST_PP_ITEM}", "y"])
         assert result == ["x", "y"]
 
     def test_embedded_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEST_PP_HOST", "localhost")
         assert (
-            _replace_env_tokens("http://${TEST_PP_HOST}:8080")
-            == "http://localhost:8080"
+            replace_env_tokens("http://${TEST_PP_HOST}:8080") == "http://localhost:8080"
         )
 
 

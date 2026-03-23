@@ -44,6 +44,28 @@ def replace_env_tokens(value: Any) -> Any:
     return value
 
 
+def resolve_secret_tokens(value: Any, secrets_manager: Any) -> Any:
+    """Recursively replace ``${secret://backend:key}`` tokens using the secrets manager.
+
+    This is designed to run as a second pass *after* the secrets manager is
+    created, resolving any secret references left as literal strings by
+    ``replace_env_tokens`` (which only handles ``${ENV_VAR}`` patterns).
+    """
+    if isinstance(value, str):
+
+        def _replace_secret(match: re.Match[str]) -> str:
+            ref = match.group(1)  # e.g. "aws:my_token"
+            result = secrets_manager.get(ref)
+            return result if isinstance(result, str) else str(result)
+
+        return re.sub(r"\$\{secret://([^}]+)\}", _replace_secret, value)
+    elif isinstance(value, dict):
+        return {k: resolve_secret_tokens(v, secrets_manager) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [resolve_secret_tokens(item, secrets_manager) for item in value]
+    return value
+
+
 class ConfigurationProvider(ABC):
     """Base configuration provider."""
 

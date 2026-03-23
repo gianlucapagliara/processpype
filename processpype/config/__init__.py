@@ -6,6 +6,7 @@ from .models import (
     ConfigurationModel,
     ObservabilityConfig,
     ProcessPypeConfig,
+    SecretsConfig,
     ServerConfig,
     ServiceConfiguration,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "FileProvider",
     "ObservabilityConfig",
     "ProcessPypeConfig",
+    "SecretsConfig",
     "ServerConfig",
     "ServiceConfiguration",
     "load_config",

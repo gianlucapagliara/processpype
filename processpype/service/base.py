@@ -3,13 +3,16 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from processpype.config.models import ServiceConfiguration
 
 from .manager import ServiceManager
 from .models import ServiceState, ServiceStatus
 from .naming import derive_service_name
+
+if TYPE_CHECKING:
+    from processpype.secrets import SecretsManager
 
 
 class ConfigurationError(Exception):
@@ -31,6 +34,7 @@ class Service(ABC):
         self._name = name or derive_service_name(self.__class__)
         self._logger: logging.Logger | None = None
         self._config: ServiceConfiguration | None = None
+        self._secrets: SecretsManager | None = None
         self._status = ServiceStatus(
             state=ServiceState.INITIALIZED, error=None, metadata={}, is_configured=False
         )
@@ -62,6 +66,10 @@ class Service(ABC):
     @property
     def config(self) -> ServiceConfiguration | None:
         return self._config
+
+    @property
+    def secrets(self) -> "SecretsManager | None":
+        return self._secrets
 
     def configure(self, config: ServiceConfiguration | dict[str, Any]) -> None:
         self.logger.info(f"Configuring {self.name} service", extra={"config": config})

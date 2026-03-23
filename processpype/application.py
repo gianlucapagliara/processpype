@@ -182,13 +182,22 @@ class Application:
                 self._secrets_manager = create_secrets_manager(self._config.secrets)
                 self.logger.info("Secrets manager initialized")
 
+                # Resolve ${secret://backend:key} tokens in config
+                from processpype.config.providers import resolve_secret_tokens
+
+                raw = self._config.model_dump(mode="python")
+                resolved = resolve_secret_tokens(raw, self._secrets_manager)
+                self._config = ProcessPypeConfig.model_validate(resolved)
+
             # 4. Communications
             from processpype.communications.setup import init_communications
 
             await init_communications(self._config.communications)
 
             # 5. Application manager + routes
-            self._manager = ApplicationManager(self.logger, self._config)
+            self._manager = ApplicationManager(
+                self.logger, self._config, self._secrets_manager
+            )
             self._setup_api_routes()
 
             self._initialized = True

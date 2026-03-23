@@ -1,20 +1,29 @@
 """Application manager — service registration and lifecycle orchestration."""
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from processpype.config.models import ProcessPypeConfig, ServiceConfiguration
 from processpype.service.base import Service
 from processpype.service.models import ServiceState
 from processpype.service.naming import derive_service_name
 
+if TYPE_CHECKING:
+    from processpype.secrets import SecretsManager
+
 
 class ApplicationManager:
     """Manages service registration, configuration, and lifecycle."""
 
-    def __init__(self, logger: logging.Logger, config: ProcessPypeConfig) -> None:
+    def __init__(
+        self,
+        logger: logging.Logger,
+        config: ProcessPypeConfig,
+        secrets_manager: "SecretsManager | None" = None,
+    ) -> None:
         self._logger = logger
         self._config = config
+        self._secrets_manager = secrets_manager
         self._services: dict[str, Service] = {}
         self._state = ServiceState.STOPPED
 
@@ -35,6 +44,7 @@ class ApplicationManager:
             name = f"{base_name}_{len(existing)}" if existing else base_name
 
         service = service_class(name)
+        service._secrets = self._secrets_manager
 
         if service.name in self._services:
             raise ValueError(f"Service {service.name} already registered")
