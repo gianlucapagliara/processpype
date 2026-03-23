@@ -80,6 +80,97 @@ config = ProcessPypeConfig(
 | `LoggingConfig` | `observability.logging` | `enabled`, `level`, `format`, `loggers`, `custom_levels`, `handlers`, `redaction`, `context` |
 | `TracingConfig` | `observability.tracing` | `enabled`, `backend`, `service_name`, `endpoint`, `logfire` (LogfireConfig), `sampling_rate` |
 | `LogfireConfig` | `observability.tracing.logfire` | `token`, `environment` |
+| `CommunicationsConfig` | `communications` | `enabled`, `backends` |
+
+### CommunicationsConfig
+
+The `communications` section configures outbound messaging backends (Telegram, Email, or custom). Each backend is identified by a unique name and dispatched by its `type` field.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `False` | Enable the communications subsystem |
+| `backends` | `dict[str, CommunicatorBackendConfig]` | `{}` | Named communicator backends |
+
+#### CommunicatorBackendConfig (base)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | `str` | *(required)* | Backend type: `telegram`, `email`, or a custom identifier |
+| `enabled` | `bool` | `True` | Whether this backend is active |
+| `labels` | `list[str]` | `["default"]` | Labels this backend handles for message routing |
+
+#### TelegramCommunicatorConfig
+
+Extends `CommunicatorBackendConfig` with `type: telegram`. Requires the `telegram` extra (`pip install processpype[telegram]`).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_id` | `int` | *(required)* | Telegram API ID |
+| `api_hash` | `str` | *(required)* | Telegram API hash |
+| `token` | `str` | *(required)* | Bot token |
+| `session_string` | `str` | `""` | Session string for auth |
+| `listen_to_commands` | `bool` | `False` | Enable incoming message handling |
+| `chats` | `dict[str, TelegramChatConfig]` | `{}` | Chat configurations keyed by label |
+
+#### TelegramChatConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chat_id` | `str` | *(required)* | Chat/channel identifier |
+| `topic_id` | `int \| None` | `None` | Forum topic ID |
+| `command_authorized` | `bool` | `False` | Accept commands from this chat |
+| `active` | `bool` | `True` | Whether this chat is active |
+
+#### EmailCommunicatorConfig
+
+Extends `CommunicatorBackendConfig` with `type: email`. Requires the `email` extra (`pip install processpype[email]`).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `host` | `str` | `"localhost"` | SMTP host |
+| `port` | `int` | `587` | SMTP port |
+| `username` | `str` | `""` | SMTP username |
+| `password` | `str` | `""` | SMTP password |
+| `from_address` | `str` | *(required)* | Sender email address |
+| `use_tls` | `bool` | `True` | Use TLS |
+| `start_tls` | `bool` | `False` | Use STARTTLS after connecting (for port 587) |
+| `default_recipients` | `list[str]` | `[]` | Default recipient addresses |
+
+#### Example
+
+```yaml
+communications:
+  enabled: true
+  backends:
+    telegram_bot:
+      type: telegram
+      api_id: ${TELEGRAM_API_ID}
+      api_hash: ${TELEGRAM_API_HASH}
+      token: ${TELEGRAM_BOT_TOKEN}
+      listen_to_commands: true
+      labels:
+        - alerts
+        - reports
+      chats:
+        alerts:
+          chat_id: "-1001234567890"
+          topic_id: 42
+        reports:
+          chat_id: "-1009876543210"
+
+    email_alerts:
+      type: email
+      host: smtp.example.com
+      port: 587
+      username: ${SMTP_USER}
+      password: ${SMTP_PASS}
+      from_address: alerts@example.com
+      start_tls: true
+      labels:
+        - alerts
+      default_recipients:
+        - ops@example.com
+```
 
 ## YAML Configuration
 
@@ -152,6 +243,21 @@ server:
 ```
 
 This replaces the v1 `EnvProvider` with a simpler, more explicit mechanism.
+
+### Secret token substitution
+
+YAML values can also reference secrets loaded by the secrets subsystem using `${secret://backend:key}` tokens.
+These are resolved as a second pass after the secrets manager is initialized:
+
+```yaml
+services:
+  my_service:
+    api_key: ${secret://env:API_KEY}
+    db_password: ${secret://aws:postgres}
+```
+
+Secret tokens are left as literal strings during the initial `${ENV_VAR}` pass and resolved later.
+See the [Secrets guide](secrets.md) for full configuration details.
 
 ## Configuration Providers
 

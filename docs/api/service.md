@@ -97,6 +97,17 @@ def logger(self) -> logging.Logger
 
 Logger named `processpype.services.{name}`.
 
+---
+
+### `secrets`
+
+```python
+@property
+def secrets(self) -> SecretsManager | None
+```
+
+The secrets manager instance, automatically injected during service registration. Returns `None` if secrets are not enabled.
+
 ## Abstract Methods
 
 ### `create_manager`

@@ -13,6 +13,7 @@ A modular application framework for building service-oriented Python application
 - **Service Framework** --- Define services with a clear lifecycle and automatic REST API endpoints
 - **FastAPI Integration** --- Each service automatically exposes HTTP endpoints for status, start, stop, and configuration
 - **Configuration Management** --- YAML file, environment variable, and programmatic configuration with Pydantic models
+- **Secrets Management** --- Multi-backend secrets framework supporting environment variables, YAML files, dotenv files, and AWS Secrets Manager with prefix support and glob patterns
 - **Pure Framework** --- No built-in services — provides the infrastructure for building your own with clear patterns and examples
 - **REST API** --- Application-level endpoints for service discovery, registration, and lifecycle management
 - **Observability** --- Structured logging with multiple formatters (JSON, color, text), log redaction, and OpenTelemetry tracing support (Logfire, OTLP gRPC/HTTP, console)

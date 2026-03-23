@@ -37,7 +37,10 @@ ProcessPype provides optional extras for additional functionality:
 | `tracing` | opentelemetry-api >= 1.20, opentelemetry-sdk >= 1.20 | OpenTelemetry tracing |
 | `logfire` | logfire >= 4.16 + tracing deps | Pydantic Logfire observability |
 | `otlp` | opentelemetry-exporter-otlp >= 1.20 + tracing deps | OTLP exporter for tracing |
-| `full` | events + logfire | All optional dependencies |
+| `telegram` | telethon >= 1.34 + events deps | Telegram communicator backend |
+| `email` | aiosmtplib >= 3.0 | Email communicator backend |
+| `aws` | boto3 >= 1.28 | AWS Secrets Manager backend |
+| `full` | events + logfire + telegram + email + aws | All optional dependencies |
 
 Install extras with:
 
@@ -45,15 +48,20 @@ Install extras with:
 # Using pip
 pip install processpype[tracing]
 pip install processpype[logfire]
+pip install processpype[telegram]
+pip install processpype[email]
 pip install processpype[full]
 
 # Using uv
 uv add processpype --extra tracing
 uv add processpype --extra logfire
+uv add processpype --extra telegram
+uv add processpype --extra email
 uv add processpype --extra full
 
 # Using poetry
 poetry add processpype[tracing]
+poetry add processpype[telegram]
 ```
 
 ## Verify Installation

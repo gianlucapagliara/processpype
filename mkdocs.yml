@@ -34,6 +34,8 @@ nav:
       - Application: guide/application.md
       - Services: guide/services.md
       - Configuration: guide/configuration.md
+      - Secrets: guide/secrets.md
+      - Communications: guide/communications.md
       - Routing: guide/routing.md
       - Docker: guide/docker.md
   - API Reference:
@@ -42,6 +44,8 @@ nav:
       - ServiceManager: api/service-manager.md
       - Models: api/models.md
       - Configuration: api/configuration.md
+      - Secrets: api/secrets.md
+      - Communications: api/communications.md
       - Router: api/router.md
   - Development:
       - Contributing: development/contributing.md

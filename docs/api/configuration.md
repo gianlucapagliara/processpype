@@ -41,6 +41,8 @@ class ProcessPypeConfig(ConfigurationModel):
     app: AppConfig = AppConfig()
     server: ServerConfig = ServerConfig()
     observability: ObservabilityConfig = ObservabilityConfig()
+    communications: CommunicationsConfig = CommunicationsConfig()
+    secrets: SecretsConfig = SecretsConfig()
     services: dict[str, ServiceConfiguration] = {}
 ```
 
@@ -123,6 +125,89 @@ Combined logging and tracing configuration.
 | `token` | `str` | `""` | Logfire API token |
 | `environment` | `str` | `""` | Logfire environment tag |
 
+### SecretsConfig
+
+`processpype.config.models.SecretsConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `False` | Enable the secrets subsystem |
+| `backends` | `dict[str, BackendConfig]` | `{}` | Named backend configurations |
+| `load` | `list[str]` | `[]` | Preload declarations (`"backend:pattern"`) |
+| `cache_enabled` | `bool` | `True` | Enable secret caching |
+
+See the [Secrets API Reference](secrets.md) for backend configuration details.
+
+### CommunicationsConfig
+
+`processpype.config.models.CommunicationsConfig`
+
+Top-level communications configuration. Backends are discriminated by the `type` field.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `bool` | `False` | Enable the communications subsystem |
+| `backends` | `dict[str, CommunicatorBackendConfigType]` | `{}` | Named communicator backends (dispatched by `type`) |
+
+### CommunicatorBackendConfig
+
+`processpype.config.models.CommunicatorBackendConfig`
+
+Base configuration for a communicator backend instance.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | `str` | *(required)* | Backend type: `telegram`, `email`, or a custom identifier |
+| `enabled` | `bool` | `True` | Whether this backend is active |
+| `labels` | `list[str]` | `["default"]` | Labels this backend handles for message routing |
+
+`labels` is validated to contain at least one entry.
+
+### TelegramCommunicatorConfig
+
+`processpype.config.models.TelegramCommunicatorConfig`
+
+Extends `CommunicatorBackendConfig` with Telegram-specific fields.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_id` | `int` | *(required)* | Telegram API ID |
+| `api_hash` | `str` | *(required)* | Telegram API hash |
+| `token` | `str` | *(required)* | Bot token |
+| `session_string` | `str` | `""` | Session string for auth |
+| `listen_to_commands` | `bool` | `False` | Enable incoming message handling |
+| `chats` | `dict[str, TelegramChatConfig]` | `{}` | Chat configurations keyed by label |
+
+### TelegramChatConfig
+
+`processpype.config.models.TelegramChatConfig`
+
+Configuration for a single Telegram chat/channel destination.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chat_id` | `str` | *(required)* | Chat/channel identifier (validated non-empty) |
+| `topic_id` | `int \| None` | `None` | Forum topic ID |
+| `command_authorized` | `bool` | `False` | Accept commands from this chat |
+| `active` | `bool` | `True` | Whether this chat is active |
+
+### EmailCommunicatorConfig
+
+`processpype.config.models.EmailCommunicatorConfig`
+
+Email-specific communicator settings (send-only).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `host` | `str` | `"localhost"` | SMTP host |
+| `port` | `int` | `587` | SMTP port |
+| `username` | `str` | `""` | SMTP username |
+| `password` | `str` | `""` | SMTP password |
+| `from_address` | `str` | *(required)* | Sender email address |
+| `use_tls` | `bool` | `True` | Use TLS |
+| `start_tls` | `bool` | `False` | Use STARTTLS after connecting (for port 587) |
+| `default_recipients` | `list[str]` | `[]` | Default recipient addresses |
+
 ### Example YAML
 
 ```yaml
@@ -147,6 +232,24 @@ observability:
     backend: logfire
     logfire:
       token: ${LOGFIRE_TOKEN}
+
+communications:
+  enabled: true
+  backends:
+    telegram_bot:
+      type: telegram
+      api_id: 12345
+      api_hash: ${TELEGRAM_API_HASH}
+      token: ${TELEGRAM_BOT_TOKEN}
+      chats:
+        alerts:
+          chat_id: "-1001234567890"
+    email_alerts:
+      type: email
+      host: smtp.example.com
+      port: 587
+      from_address: alerts@example.com
+      start_tls: true
 
 services:
   my_service:
@@ -211,3 +314,13 @@ observability:
       token: ${LOGFIRE_TOKEN}
     endpoint: ${OTEL_ENDPOINT:-http://localhost:4317}
 ```
+
+### Secret Tokens
+
+`processpype.config.providers.resolve_secret_tokens`
+
+```python
+def resolve_secret_tokens(value: Any, secrets_manager: Any) -> Any
+```
+
+Recursively replaces `${secret://backend:key}` tokens in strings, dicts, and lists using the secrets manager. Called automatically during application initialization after the secrets manager is created.
