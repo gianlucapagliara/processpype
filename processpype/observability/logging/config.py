@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import platform
 from dataclasses import dataclass
-from hashlib import md5
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -62,15 +62,15 @@ def build_runtime_context(
     strategy_code = (strategy_file_path or "application").replace(".yml", "")
     run_id = (
         os.environ.get("RUN_ID")
-        or md5(
+        or sha256(
             f"pid:{os.getpid()}_ppid:{os.getppid()}_strategy:{strategy_code}".encode()
-        ).hexdigest()
+        ).hexdigest()[:12]
     )
     instance_id = (
         os.environ.get("INSTANCE_ID")
-        or md5(
+        or sha256(
             f"{platform.uname()}_pid:{os.getpid()}_ppid:{os.getppid()}".encode()
-        ).hexdigest()
+        ).hexdigest()[:12]
     )
     environment = os.environ.get("DEPLOY_ENV", "development")
     return LoggingRuntimeContext(
@@ -144,3 +144,25 @@ def load_logging_config(
     except ValidationError as exc:
         raise ValueError(f"Invalid logging configuration file: {config_path}") from exc
     return validated.model_dump(mode="python"), runtime_context
+
+
+def load_logging_config_from_path(
+    config_path: Path,
+    strategy_file_path: str = "application",
+    replace_mapping: dict[str, str] | None = None,
+) -> tuple[dict[str, Any], LoggingRuntimeContext]:
+    """Load and validate a dictConfig YAML from an already-resolved path.
+
+    Convenience wrapper around :func:`load_logging_config` that accepts a
+    :class:`~pathlib.Path` directly instead of requiring a filename + directory
+    split.
+    """
+    config_path = Path(config_path).resolve()
+    if not config_path.is_file():
+        raise FileNotFoundError(f"Logging config file not found: {config_path}")
+    return load_logging_config(
+        conf_filename=config_path.name,
+        strategy_file_path=strategy_file_path,
+        file_dir=str(config_path.parent),
+        replace_mapping=replace_mapping,
+    )

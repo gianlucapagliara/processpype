@@ -7,6 +7,7 @@ from processpype.observability.logging.config import (
     DictConfigModel,
     LoggingRuntimeContext,
     load_logging_config,
+    load_logging_config_from_path,
 )
 from processpype.observability.logging.context import (
     clear_log_context,
@@ -49,6 +50,7 @@ __all__ = [
     "get_log_context",
     "init_logging",
     "load_logging_config",
+    "load_logging_config_from_path",
     "register_runtime_levels",
     "set_log_context",
 ]

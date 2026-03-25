@@ -85,19 +85,40 @@ class LoggingConfig(ConfigurationModel):
     enabled: bool = Field(
         default=True, description="When False, no logging handlers are installed"
     )
+    config_file: str | None = Field(
+        default=None,
+        description=(
+            "Path to a dictConfig YAML file. When set, the file is loaded via "
+            "logging.config.dictConfig() and the inline format field is ignored. "
+            "Supports token replacement ($PROJECT_DIR, $RUN_ID, $DEPLOY_ENV, "
+            "$STRATEGY_FILE_PATH, $INSTANCE_ID). "
+            "Resolved relative to conf_dir when not absolute."
+        ),
+    )
     level: str = Field(default="INFO", description="Root log level")
-    format: str = Field(
+    format: Literal["text", "color", "json"] = Field(
         default="color", description="Default format: text | color | json"
     )
+
+    @field_validator("level")
+    @classmethod
+    def validate_level(cls, v: str) -> str:
+        import logging
+
+        if not hasattr(logging, v.upper()):
+            raise ValueError(
+                f"Unknown log level '{v}'. "
+                f"Use one of: DEBUG, INFO, WARNING, ERROR, CRITICAL "
+                f"(or a custom level registered beforehand)."
+            )
+        return v
+
     loggers: dict[str, str] = Field(
         default_factory=dict,
         description="Per-logger level overrides, e.g. {'noisy.lib': 'WARNING'}",
     )
     custom_levels: dict[str, int] = Field(
         default_factory=dict, description="Custom log level name → numeric value"
-    )
-    handlers: dict[str, dict[str, Any]] = Field(
-        default_factory=dict, description="Additional dictConfig-style handler defs"
     )
     redaction: RedactionConfig = Field(default_factory=RedactionConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
@@ -114,7 +135,7 @@ class TracingConfig(ConfigurationModel):
     """Tracing subsystem configuration."""
 
     enabled: bool = Field(default=False, description="Enable distributed tracing")
-    backend: str = Field(
+    backend: Literal["logfire", "otlp_grpc", "otlp_http", "console"] = Field(
         default="console",
         description="Tracing backend: logfire | otlp_grpc | otlp_http | console",
     )

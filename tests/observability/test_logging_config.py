@@ -13,6 +13,7 @@ from processpype.observability.logging.config import (
     _replace_tokens,
     build_runtime_context,
     load_logging_config,
+    load_logging_config_from_path,
     resolve_project_root,
 )
 
@@ -207,3 +208,43 @@ class TestLoadLoggingConfig:
             "logging.yaml", replace_mapping={"$CUSTOM_VAR": "replaced"}
         )
         assert result["formatters"]["custom"]["format"] == "replaced"
+
+
+class TestLoadLoggingConfigFromPath:
+    def test_loads_from_resolved_path(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PROJECT_DIR", str(tmp_path))
+        config_data = {
+            "version": 1,
+            "root": {"level": "INFO", "handlers": ["console"]},
+            "handlers": {
+                "console": {"class": "logging.StreamHandler", "level": "INFO"}
+            },
+        }
+        config_file = tmp_path / "logging.yaml"
+        config_file.write_text(yaml.dump(config_data))
+
+        result, ctx = load_logging_config_from_path(config_file)
+        assert result["version"] == 1
+        assert ctx.project_dir == str(tmp_path.resolve())
+
+    def test_file_not_found(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            load_logging_config_from_path(tmp_path / "nonexistent.yaml")
+
+    def test_token_replacement(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PROJECT_DIR", str(tmp_path))
+        config_data = {
+            "version": 1,
+            "root": {"level": "INFO", "handlers": []},
+            "handlers": {
+                "file": {
+                    "class": "logging.FileHandler",
+                    "filename": "$PROJECT_DIR/app.log",
+                }
+            },
+        }
+        config_file = tmp_path / "logging.yaml"
+        config_file.write_text(yaml.dump(config_data))
+
+        result, _ = load_logging_config_from_path(config_file)
+        assert str(tmp_path.resolve()) in result["handlers"]["file"]["filename"]

@@ -43,9 +43,5 @@ def register_runtime_levels() -> None:
     _add_level("TRACE", TRACE)
     _add_level("TRACK", TRACK)
     _add_level("NETWORK", NETWORK)
-    if not hasattr(logging, "EVENT_LOG"):
-        logging.addLevelName(EVENT_LOG, "EVENT_LOG")
-        logging.__dict__["EVENT_LOG"] = EVENT_LOG
-    if not hasattr(logging, "METRIC_LOG"):
-        logging.addLevelName(METRIC_LOG, "METRIC_LOG")
-        logging.__dict__["METRIC_LOG"] = METRIC_LOG
+    _add_level("EVENT_LOG", EVENT_LOG, method_name="event_log")
+    _add_level("METRIC_LOG", METRIC_LOG, method_name="metric_log")

@@ -150,4 +150,7 @@ def _build_exporter(config: TracingConfig) -> Any | None:
 
         return ConsoleSpanExporter()
 
-    return None
+    raise ValueError(
+        f"Unknown tracing backend '{config.backend}'. "
+        f"Supported backends: logfire, otlp_grpc, otlp_http, console."
+    )

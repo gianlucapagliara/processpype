@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from processpype.config.models import LogfireConfig, TracingConfig
 from processpype.observability.tracing import setup as tracing_setup_module
@@ -231,10 +232,9 @@ class TestBuildExporter:
             result = tracing_setup_module._build_exporter(cfg)
         assert result is mock_console_exporter
 
-    def test_unknown_backend_returns_none(self):
-        cfg = TracingConfig(backend="unknown_backend")
-        result = tracing_setup_module._build_exporter(cfg)
-        assert result is None
+    def test_unknown_backend_rejected_by_validation(self):
+        with pytest.raises(ValidationError, match="literal_error"):
+            TracingConfig(backend="unknown_backend")
 
     def test_otlp_grpc_default_endpoint(self):
         cfg = TracingConfig(backend="otlp_grpc", endpoint="")

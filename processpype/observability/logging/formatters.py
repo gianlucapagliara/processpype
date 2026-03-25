@@ -78,11 +78,6 @@ class JsonFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        for context_field in ("strategy_code", "run_id", "instance_id", "environment"):
-            value = getattr(record, context_field, None)
-            if value is not None:
-                payload[context_field] = value
-
         extra_payload = {
             key: value
             for key, value in record.__dict__.items()

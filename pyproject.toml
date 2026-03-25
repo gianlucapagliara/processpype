@@ -1,6 +1,6 @@
 [project]
 name = "processpype"
-version = "2.1.0"
+version = "2.1.1"
 description = "A modular process environment framework: observability, server, and services — all driven by YAML config"
 authors = [{ name = "Gianluca Pagliara", email = "pagliara.gianluca@gmail.com" }]
 readme = "README.md"
