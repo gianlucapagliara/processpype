@@ -272,7 +272,7 @@ async def test_autostart_done_callback_cancelled() -> None:
     """Test _on_autostart_done handles a cancelled task."""
     service = MockService()
 
-    task = asyncio.get_event_loop().create_task(asyncio.sleep(10))
+    task = asyncio.get_running_loop().create_task(asyncio.sleep(10))
     task.cancel()
     try:
         await task
@@ -291,7 +291,7 @@ async def test_autostart_done_callback_exception() -> None:
     async def _fail() -> None:
         raise ValueError("boom")
 
-    task = asyncio.get_event_loop().create_task(_fail())
+    task = asyncio.get_running_loop().create_task(_fail())
     try:
         await task
     except ValueError:
